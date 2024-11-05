@@ -62,3 +62,13 @@ like Webpack:
 ```bash
 webpack --mode production --entry ./_build/default/src/output/src/ReactApp.js
 ```
+
+
+# Editor integration
+
+``` bash
+opam install user-setup merlin tuareg ocamlformat ocp-indent
+opam user-setup install
+```
+
+`

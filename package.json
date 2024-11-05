@@ -7,14 +7,16 @@
     "init": "opam switch create . 5.2.0 -y --deps-only && npm run install-opam-npm",
     "install-opam-npm": "npm install && npm run install-opam && npm run check-npm-deps",
     "dune": "opam exec -- dune",
-    "build": "npm run dune -- build @react @node",
+    "build": "npm run dune -- build @react @node @test",
     "build-verbose": "npm run build -- --verbose",
     "clean": "npm run dune -- clean",
     "format": "npm run format-check -- --auto-promote",
     "format-check": "npm run dune -- build @fmt",
     "watch": "npm run build -- --watch",
-    "bundle": "webpack --mode production --entry ./_build/default/src/output/src/ReactApp.js",
-    "serve": "webpack serve --open --mode development --entry ./_build/default/src/output/src/ReactApp.js"
+    "bundle": "webpack --mode production --entry ./_build/default/src/output/src/ReactApp2.js",
+    "serve": "webpack serve --open --mode development --entry ./_build/default/src/output/src/ReactApp2.js",
+    "test": "jest",
+    "test-watch": "jest --watchAll"
   },
   "scriptsComments": {
     "preinstall-opam": "# Sync opam database with upstream repositories: https://opam.ocaml.org/doc/Usage.html#opam-update",
@@ -34,7 +36,9 @@
   },
   "dependencies": {
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "jest": "^26.5.2",
+    "@testing-library/jest-dom": "^5.10.0"
   },
   "devDependencies": {
     "webpack": "^5.73.0",

@@ -16,6 +16,8 @@ depends: [
   "opam-check-npm-deps" {with-test} # todo: use with-dev-setup once opam 2.2 is out
   "ocaml-lsp-server" {with-test} # todo: use with-dev-setup once opam 2.2 is out
   "dot-merlin-reader" {with-test} # todo: use with-dev-setup once opam 2.2 is out
+  "melange-jest" {with-test}
   "odoc" {with-doc}
+  "melange-webapi"
 ]
 dev-repo: "git+https://github.com/your/project.git"
