@@ -1,0 +1,8 @@
+(dirs :standard __tests__)
+
+(library
+ (name theory)
+ (libraries melange.belt)
+ (preprocess
+  (pps melange.ppx))
+ (modes melange))
