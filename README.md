@@ -13,6 +13,9 @@ npm run init
 # In separate terminals:
 npm run watch
 npm run serve
+
+# Tests:
+npm run test
 ```
 
 ### React
