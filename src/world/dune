@@ -1,3 +1,4 @@
 (library
  (name world)
+ (libraries melange-webapi)
  (modes melange))
