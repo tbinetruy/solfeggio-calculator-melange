@@ -100,7 +100,7 @@ module AnnotatedFretboard = struct
     ~cursor:"pointer" ~fontSize:"0.85rem"
     ~fontFamily:"'SF Mono', 'Fira Code', monospace" ()
 
-  let make ~notes ~tuning ~key_signature ?(degree=None) ?(extra_notes=[]) () =
+  let make ~notes ~tuning ~key_signature ~sequential ?(degree=None) ?(extra_notes=[]) () =
     let n = List.length notes in
     let (enabled, set_enabled) = React.useState (fun () ->
       Array.make n true
@@ -170,7 +170,7 @@ module AnnotatedFretboard = struct
       tone_toggles;
       div ~style:Styles.interval_line ~children:[React.string (filtered_notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
       div ~style:Styles.interval_line ~children:[React.string (filtered_notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
-      Staff.createElement ~notes:filtered_notes ~key_signature () [@JSX];
+      Staff.createElement ~notes:filtered_notes ~key_signature ~sequential () [@JSX];
       Fretboard.createElement ~notes:filtered_notes ~tuning ~extra_notes () [@JSX];
     ] () [@JSX]
   [@@react.component]
@@ -204,11 +204,11 @@ module App = struct
       _set_chord_quality (fun _ -> None)
     in
 
-    let notes = match (interval_type, chord_quality, scale_quality) with
-      | (Some interval, _, _) -> Interval.to_notes root interval
-      | (None, Some quality, _) -> Chord.to_notes root quality
-      | (None, None, Some quality) -> Scale.to_notes root quality
-      | (None, None, None) -> []
+    let (notes, sequential) = match (interval_type, chord_quality, scale_quality) with
+      | (Some interval, _, _) -> (Interval.to_notes root interval, false)
+      | (None, Some quality, _) -> (Chord.to_notes root quality, false)
+      | (None, None, Some quality) -> (Scale.to_notes root quality, true)
+      | (None, None, None) -> ([], false)
     in
 
     let key_signature = match scale_quality with
@@ -362,7 +362,7 @@ module App = struct
       |. List.mapWithIndex (fun i (chord_notes, deg) ->
         let extra_notes = Notes.subtract notes chord_notes in
         AnnotatedFretboard.createElement
-          ~notes:chord_notes ~tuning ~key_signature ~degree:(Some deg) ~extra_notes
+          ~notes:chord_notes ~tuning ~key_signature ~sequential:false ~degree:(Some deg) ~extra_notes
           ~key:(string_of_int i) () [@JSX]
       )
       |. List.toArray
@@ -429,7 +429,7 @@ module App = struct
         ] () [@JSX];
       ] () [@JSX];
       harmonization;
-      AnnotatedFretboard.createElement ~notes ~tuning ~key_signature () [@JSX];
+      AnnotatedFretboard.createElement ~notes ~tuning ~key_signature ~sequential () [@JSX];
       progression;
     ] () [@JSX]
   [@@react.component]

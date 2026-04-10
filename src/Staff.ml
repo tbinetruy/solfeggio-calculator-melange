@@ -30,10 +30,10 @@ let render_staff container ~width ~key_signature ~stave_notes ~num_beats =
   let _ = Formatter.format formatter [|voice|] (width - 120) in
   Voice.draw voice context stave
 
-let render_notation container notes key_signature =
+let render_notation container notes key_signature ~sequential =
   let noted = Note.assign_octaves notes in
   let n = Stdlib.List.length noted in
-  if n > 4 then
+  if sequential then
     let stave_notes = noted
       |> Stdlib.List.map (fun pair -> make_stave_note [pair] "q")
       |> Stdlib.Array.of_list
@@ -45,13 +45,12 @@ let render_notation container notes key_signature =
     render_staff container
       ~width:300 ~key_signature ~stave_notes ~num_beats:4
 
-let play_notes notes =
+let play_notes notes ~sequential =
   let open Tone_bindgen in
   let noted = Note.assign_octaves notes in
-  let n = Stdlib.List.length noted in
   let synth = PolySynth.make () |> PolySynth.to_destination in
   let _ = start () |> Js.Promise.then_ (fun () ->
-    if n > 4 then begin
+    if sequential then begin
       let t = now () in
       noted |> Stdlib.List.iteri (fun i (note, octave) ->
         PolySynth.trigger_attack_release_at synth
@@ -77,14 +76,14 @@ let play_button_style = ReactDOM.Style.make
 let wrapper_style = ReactDOM.Style.make
   ~display:"flex" ~alignItems:"center" ~gap:"0.5rem" ()
 
-let make ~notes ~key_signature =
+let make ~notes ~key_signature ~sequential =
   let container_ref = React.useRef Js.Nullable.null in
   React.useEffect2 (fun () ->
     (match Js.Nullable.toOption container_ref.current with
      | Some el ->
        let _ = [%mel.raw {|el.innerHTML = ""|}] in
        (match notes with
-        | _ :: _ -> render_notation el notes key_signature
+        | _ :: _ -> render_notation el notes key_signature ~sequential
         | [] -> ())
      | None -> ());
     None
@@ -94,7 +93,7 @@ let make ~notes ~key_signature =
       ~style:(ReactDOM.Style.make ~minHeight:"150px" ~flexGrow:"1" ())
       ~children:[] () [@JSX];
     button ~style:play_button_style
-      ~onClick:(fun _ -> play_notes notes)
+      ~onClick:(fun _ -> play_notes notes ~sequential)
       ~children:[React.string {js|▶|js}] () [@JSX];
   ] () [@JSX]
 [@@react.component]
