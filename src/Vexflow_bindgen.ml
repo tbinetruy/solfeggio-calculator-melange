@@ -73,6 +73,11 @@ module Voice = struct
   external make : config -> t = "Voice"
     [@@mel.new] [@@mel.module "vexflow"]
 
+  external set_mode : t -> int -> t = "setMode"
+    [@@mel.send]
+
+  let soft_mode = 2
+
   external add_tickables : t -> StaveNote.t array -> t = "addTickables"
     [@@mel.send]
 
@@ -92,3 +97,6 @@ module Formatter = struct
   external format : t -> Voice.t array -> int -> t = "format"
     [@@mel.send]
 end
+
+external apply_accidentals : Voice.t array -> string -> unit = "applyAccidentals"
+  [@@mel.scope "Accidental"] [@@mel.module "vexflow"]
