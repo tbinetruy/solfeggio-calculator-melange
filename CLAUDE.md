@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run a single test: `npx jest src/theory/__tests__/Theory_test.ml -t "specific test name"`
 
 ## Code Style Guidelines
-- Use OCaml syntax in `.ml` files and ReasonML syntax in `.re` files
+- Use OCaml syntax in `.ml` files
 - Follow existing formatting conventions (use `npm run format-check` to validate)
 - Use Belt for standard library functions (e.g., `open Belt` at the top of files)
 - Error handling: Use `Result.Ok`/`Result.Error` and monadic operators (`let+`, `let*`)
