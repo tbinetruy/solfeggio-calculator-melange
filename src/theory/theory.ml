@@ -1,143 +1,107 @@
 open Belt
 
-module Utils = struct
-  let string_concat lst sep = String.concat sep lst
+module Result_syntax = struct
+  let ( let+ ) = Result.map
+  let ( let* ) = Result.flatMap
 end
-
-
-let ( let+ ) = Result.map
-let ( let* ) = Result.flatMap
 
 let semitones_in_octave = 12
 
 module Accidental = struct
   type t =
-    | DoubleFlat
+    | Double_flat
     | Flat
     | Natural
     | Sharp
-    | DoubleSharp
+    | Double_sharp
 
-  let to_string accidental =
-    match accidental with
+  let to_string = function
+    | Double_flat -> "bb"
     | Flat -> "b"
-    | DoubleFlat -> "bb"
     | Natural -> ""
-    | DoubleSharp -> "##"
     | Sharp -> "#"
+    | Double_sharp -> "##"
 
-  let to_semitones accidental =
-    match accidental with
-    | DoubleFlat -> -2
+  let to_semitones = function
+    | Double_flat -> -2
     | Flat -> -1
     | Natural -> 0
     | Sharp -> 1
-    | DoubleSharp -> 2
+    | Double_sharp -> 2
 end
 
 module Note = struct
-  open Accidental
+  type pitch_class = C | D | E | F | G | A | B
 
-  type t =
-    | C of Accidental.t
-    | D of Accidental.t
-    | E of Accidental.t
-    | F of Accidental.t
-    | G of Accidental.t
-    | A of Accidental.t
-    | B of Accidental.t
+  type t = { pitch_class : pitch_class; accidental : Accidental.t }
 
-  let set_accidental note accidental =
-    match note with
-    | C _ -> C accidental
-    | D _ -> D accidental
-    | E _ -> E accidental
-    | F _ -> F accidental
-    | G _ -> G accidental
-    | A _ -> A accidental
-    | B _ -> B accidental
+  let c accidental = { pitch_class = C; accidental }
+  let d accidental = { pitch_class = D; accidental }
+  let e accidental = { pitch_class = E; accidental }
+  let f accidental = { pitch_class = F; accidental }
+  let g accidental = { pitch_class = G; accidental }
+  let a accidental = { pitch_class = A; accidental }
+  let b accidental = { pitch_class = B; accidental }
 
-  let is_same_note_familly noteA noteB =
-    match (noteA, noteB) with
-    | (C _, C _)
-    | (D _, D _)
-    | (E _, E _)
-    | (F _, F _)
-    | (G _, G _)
-    | (A _, A _)
-    | (B _, B _) -> true
-    | (_, _) -> false
+  let set_accidental note accidental = { note with accidental }
+
+  let is_same_note_family a b = a.pitch_class = b.pitch_class
+
+  let pitch_class_to_string = function
+    | C -> "C" | D -> "D" | E -> "E" | F -> "F"
+    | G -> "G" | A -> "A" | B -> "B"
 
   let to_string note =
-    match note with
-    | C accidental -> "C" ^ (accidental |. to_string)
-    | D accidental -> "D" ^ (accidental |. to_string)
-    | E accidental -> "E" ^ (accidental |. to_string)
-    | F accidental -> "F" ^ (accidental |. to_string)
-    | G accidental -> "G" ^ (accidental |. to_string)
-    | A accidental -> "A" ^ (accidental |. to_string)
-    | B accidental -> "B" ^ (accidental |. to_string)
+    pitch_class_to_string note.pitch_class ^ Accidental.to_string note.accidental
+
+  let next_pitch_class = function
+    | C -> D | D -> E | E -> F | F -> G
+    | G -> A | A -> B | B -> C
 
   let get_next_note note =
-    match note with
-    | C accidental -> D accidental
-    | D accidental -> E accidental
-    | E accidental -> F accidental
-    | F accidental -> G accidental
-    | G accidental -> A accidental
-    | A accidental -> B accidental
-    | B accidental -> C accidental
+    { pitch_class = next_pitch_class note.pitch_class; accidental = note.accidental }
+
+  let pitch_class_to_semitones = function
+    | C -> 0 | D -> 2 | E -> 4 | F -> 5
+    | G -> 7 | A -> 9 | B -> 11
 
   let to_semitones note =
-    match note with
-    | C accidental -> 0 + (accidental |. to_semitones)
-    | D accidental -> 2 + (accidental |. to_semitones)
-    | E accidental -> 4 + (accidental |. to_semitones)
-    | F accidental -> 5 + (accidental |. to_semitones)
-    | G accidental -> 7 + (accidental |. to_semitones)
-    | A accidental -> 9 + (accidental |. to_semitones)
-    | B accidental -> 11 + (accidental |. to_semitones)
+    pitch_class_to_semitones note.pitch_class + Accidental.to_semitones note.accidental
 
-  let rec get_nth_note rootNote n =
+  let rec get_nth_note root n =
     match n with
-    | 0 -> rootNote
-    | _ -> get_nth_note (rootNote |. get_next_note)  (n - 1)
+    | 0 -> root
+    | _ -> get_nth_note (get_next_note root) (n - 1)
 
-  let semitones_between_notes noteA noteB =
-    let delta = (noteB |. to_semitones) - (noteA |. to_semitones) in
-    match delta < 0 with
-    | true -> semitones_in_octave + delta
-    | false -> delta
+  let semitones_between_notes a b =
+    let delta = to_semitones b - to_semitones a in
+    if delta < 0 then semitones_in_octave + delta else delta
 end
 
 
 module Notes = struct
-  type t = Note.t List.t
+  type t = Note.t list
 
   let string_of_notes notes =
-    notes
-    |. List.map Note.to_string
-    |. Utils.string_concat " "
+    notes |. List.map Note.to_string |> String.concat " "
 
   let has_note note notes = notes |. List.has note (fun a b -> a = b)
 
-  let intersection notesA notesB =
-    notesA |. List.keep (fun note -> has_note note notesB)
+  let intersection notes_a notes_b =
+    notes_a |. List.keep (fun note -> has_note note notes_b)
 
-  let subtract notesA notesB =
-    notesA |. List.keep (fun note -> not (has_note note notesB))
+  let subtract notes_a notes_b =
+    notes_a |. List.keep (fun note -> not (has_note note notes_b))
 
   let get_tonic = List.head
 end
 
 
 module Progression = struct
-  type t = Note.t List.t List.t
+  type t = Note.t list list
 
   let to_string p =
-    p
-    |. List.map Notes.string_of_notes
-    |. Utils.string_concat " | "
+    p |. List.map Notes.string_of_notes |> String.concat " | "
 end
 
 type semitone = int
@@ -175,25 +139,18 @@ module Interval = struct
       | Perfect
       | Augmented
 
-    module Errors = struct
-      let semitones = Result.Error "Semitones greater that 1 or smaller that -1 are not supported."
-    end
-
-    let to_semitones qualifier =
-      match qualifier with
+    let to_semitones = function
       | Diminished -> -1
       | Perfect -> 0
       | Augmented -> 1
 
-    let quality_of_semitones semitones =
-      match semitones with
-      | -1 -> Result.Ok(Diminished)
-      | 0 -> Result.Ok(Perfect)
-      | 1 -> Result.Ok(Augmented)
-      | _ -> Errors.semitones
+    let of_semitones = function
+      | -1 -> Result.Ok Diminished
+      | 0 -> Result.Ok Perfect
+      | 1 -> Result.Ok Augmented
+      | _ -> Result.Error "Semitones greater than 1 or smaller than -1 are not supported."
 
-    let to_string qualifier =
-      match qualifier with
+    let to_string = function
       | Diminished -> "diminished"
       | Perfect -> "perfect"
       | Augmented -> "augmented"
@@ -206,27 +163,20 @@ module Interval = struct
       | Major
       | Augmented
 
-    module Errors = struct
-      let semitones = Result.Error "Semitones greater that 1 or smaller that -2 are not supported."
-    end
-
-    let to_semitones qualifier =
-      match qualifier with
+    let to_semitones = function
       | Diminished -> -2
       | Minor -> -1
       | Major -> 0
       | Augmented -> 1
 
-    let quality_of_semitones semitones =
-      match semitones with
+    let of_semitones = function
       | -2 -> Result.Ok Diminished
       | -1 -> Result.Ok Minor
       | 0 -> Result.Ok Major
       | 1 -> Result.Ok Augmented
-      | _ -> Errors.semitones
+      | _ -> Result.Error "Semitones greater than 1 or smaller than -2 are not supported."
 
-    let to_string qualifier =
-      match qualifier with
+    let to_string = function
       | Diminished -> "diminished"
       | Minor -> "minor"
       | Major -> "major"
@@ -243,20 +193,14 @@ module Interval = struct
     | Seventh of MajorMinorQuality.t
     | Octave
 
-  module Errors = struct
-    let unison_semitones = Result.Error "semitones != 1 are not supported with Unison"
-    let octave_semitones = Result.Error "semitones != 12 are not supported with Octave"
-    let n_notes_too_large = Result.Error "nNotes > 8 (Octave) are not supported"
-  end
-
   let to_semitones = function
-    | Unison ->  Note.to_semitones (C Natural)
-    | Second qualifier ->  Note.to_semitones (D Natural) + MajorMinorQuality.to_semitones qualifier
-    | Third qualifier ->  Note.to_semitones (E Natural) + MajorMinorQuality.to_semitones qualifier
-    | Fourth qualifier ->  Note.to_semitones (F Natural) + PerfectQuality.to_semitones qualifier
-    | Fifth qualifier ->  Note.to_semitones (G Natural) + PerfectQuality.to_semitones qualifier
-    | Sixth qualifier ->  Note.to_semitones (A Natural) + MajorMinorQuality.to_semitones qualifier
-    | Seventh qualifier ->  Note.to_semitones (B Natural) + MajorMinorQuality.to_semitones qualifier
+    | Unison -> 0
+    | Second q -> 2 + MajorMinorQuality.to_semitones q
+    | Third q -> 4 + MajorMinorQuality.to_semitones q
+    | Fourth q -> 5 + PerfectQuality.to_semitones q
+    | Fifth q -> 7 + PerfectQuality.to_semitones q
+    | Sixth q -> 9 + MajorMinorQuality.to_semitones q
+    | Seventh q -> 11 + MajorMinorQuality.to_semitones q
     | Octave -> semitones_in_octave
 
   let n_notes_of_interval = function
@@ -269,118 +213,86 @@ module Interval = struct
     | Seventh _ -> 7
     | Octave -> 8
 
+  (* Build an interval from note count + semitone count.
+     Uses the reference semitones for each interval number to compute quality offset. *)
   let from_semitones n_notes n_semitones =
+    let open Result_syntax in
     match n_notes with
     | 1 ->
-      if n_semitones = 0 then Result.Ok(Unison)
-      else Errors.unison_semitones
+      if n_semitones = 0 then Result.Ok Unison
+      else Result.Error "semitones != 0 are not supported with Unison"
     | 2 ->
-      let+ quality = (n_semitones - (Major |. Second |. to_semitones)) |. MajorMinorQuality.quality_of_semitones in
-      Second(quality)
+      let+ q = MajorMinorQuality.of_semitones (n_semitones - 2) in Second q
     | 3 ->
-      let+ quality = (n_semitones - (Major |. Third |. to_semitones)) |. MajorMinorQuality.quality_of_semitones in
-      Third(quality)
+      let+ q = MajorMinorQuality.of_semitones (n_semitones - 4) in Third q
     | 4 ->
-      let+ quality = (n_semitones - (Perfect |. Fourth |. to_semitones)) |. PerfectQuality.quality_of_semitones in
-      Fourth(quality)
+      let+ q = PerfectQuality.of_semitones (n_semitones - 5) in Fourth q
     | 5 ->
-      let+ quality = (n_semitones - (Perfect |. Fifth |. to_semitones)) |. PerfectQuality.quality_of_semitones in
-      Fifth(quality)
+      let+ q = PerfectQuality.of_semitones (n_semitones - 7) in Fifth q
     | 6 ->
-      let+ quality = (n_semitones - (Major |. Sixth |. to_semitones)) |. MajorMinorQuality.quality_of_semitones in
-      Sixth(quality)
+      let+ q = MajorMinorQuality.of_semitones (n_semitones - 9) in Sixth q
     | 7 ->
-      let+ quality = (n_semitones - (Major |. Seventh |. to_semitones)) |. MajorMinorQuality.quality_of_semitones in
-      Seventh(quality)
+      let+ q = MajorMinorQuality.of_semitones (n_semitones - 11) in Seventh q
     | 8 ->
       if n_semitones = 12 then Result.Ok Octave
-      else Errors.octave_semitones
-    | _ -> Errors.n_notes_too_large
+      else Result.Error "semitones != 12 are not supported with Octave"
+    | _ -> Result.Error "n_notes > 8 (Octave) are not supported"
 
   let to_string = function
     | Unison -> "unison"
-    | Second qualifier -> MajorMinorQuality.to_string qualifier ^ " second"
-    | Third qualifier -> MajorMinorQuality.to_string qualifier ^ " third"
-    | Fourth qualifier -> PerfectQuality.to_string qualifier ^ " fourth"
-    | Fifth qualifier -> PerfectQuality.to_string qualifier ^ " fifth"
-    | Sixth qualifier -> MajorMinorQuality.to_string qualifier ^ " sixth"
-    | Seventh qualifier -> MajorMinorQuality.to_string qualifier ^ " seventh"
+    | Second q -> MajorMinorQuality.to_string q ^ " second"
+    | Third q -> MajorMinorQuality.to_string q ^ " third"
+    | Fourth q -> PerfectQuality.to_string q ^ " fourth"
+    | Fifth q -> PerfectQuality.to_string q ^ " fifth"
+    | Sixth q -> MajorMinorQuality.to_string q ^ " sixth"
+    | Seventh q -> MajorMinorQuality.to_string q ^ " seventh"
     | Octave -> "octave"
 
-  let rec interval_number_of_notes note_a note_b distance_accumulator =
-    if note_a |. Note.is_same_note_familly note_b then
-      distance_accumulator
-    else
-      let next_note = note_a |. Note.get_next_note in
-      interval_number_of_notes next_note note_b (distance_accumulator + 1)
+  let rec interval_number_of_notes note_a note_b acc =
+    if Note.is_same_note_family note_a note_b then acc
+    else interval_number_of_notes (Note.get_next_note note_a) note_b (acc + 1)
 
-  let from_notes note_a  note_b =
-    let delta_semitones = Note.semitones_between_notes note_a note_b in
+  let from_notes note_a note_b =
+    let open Result_syntax in
+    let delta = Note.semitones_between_notes note_a note_b in
     match interval_number_of_notes note_a note_b 0 with
     | 0 -> Result.Ok Unison
-    | 1 ->
-      let semitones = delta_semitones - to_semitones (Major |. Second) in
-      let+ quality = MajorMinorQuality.quality_of_semitones semitones in
-      Second quality
-    | 2 ->
-      let semitones = delta_semitones - to_semitones (Major |. Third) in
-      let+ quality = MajorMinorQuality.quality_of_semitones semitones in
-      Third quality
-    | 3 ->
-      let semitones = delta_semitones - to_semitones (Perfect |. Fourth) in
-      let+ quality = PerfectQuality.quality_of_semitones semitones in
-      Fourth quality
-    | 4 ->
-      let semitones = delta_semitones - to_semitones (Perfect |. Fifth) in
-      let+ quality = PerfectQuality.quality_of_semitones semitones in
-      Fifth quality
-    | 5 ->
-      let semitones = delta_semitones - to_semitones (Major |. Sixth) in
-      let+ quality = MajorMinorQuality.quality_of_semitones semitones in
-      Sixth quality
-    | 6 ->
-      let semitones = delta_semitones - to_semitones (Major |. Seventh) in
-      let+ quality = MajorMinorQuality.quality_of_semitones semitones in
-      Seventh quality
+    | 1 -> let+ q = MajorMinorQuality.of_semitones (delta - 2) in Second q
+    | 2 -> let+ q = MajorMinorQuality.of_semitones (delta - 4) in Third q
+    | 3 -> let+ q = PerfectQuality.of_semitones (delta - 5) in Fourth q
+    | 4 -> let+ q = PerfectQuality.of_semitones (delta - 7) in Fifth q
+    | 5 -> let+ q = MajorMinorQuality.of_semitones (delta - 9) in Sixth q
+    | 6 -> let+ q = MajorMinorQuality.of_semitones (delta - 11) in Seventh q
     | 7 -> Result.Ok Octave
-    | _ -> Errors.n_notes_too_large
+    | _ -> Result.Error "n_notes > 8 (Octave) are not supported"
 
-  let note_of_cannonical_interval root_note interval =
-    match interval with
-    | Unison -> root_note
-    | Second _ -> root_note |. Note.get_nth_note 1
-    | Third _ -> root_note |. Note.get_nth_note 2
-    | Fourth _ -> root_note |. Note.get_nth_note 3
-    | Fifth _ -> root_note |. Note.get_nth_note 4
-    | Sixth _ -> root_note |. Note.get_nth_note 5
-    | Seventh _ -> root_note |. Note.get_nth_note 6
-    | Octave -> root_note |. Note.get_nth_note 7
+  let note_of_canonical_interval root interval =
+    Note.get_nth_note root (n_notes_of_interval interval - 1)
 
-  let next_note root_note interval =
-    let new_note = root_note |. note_of_cannonical_interval interval |. Note.set_accidental Natural in
-    let target_semiton_difference = interval |. to_semitones in
-    let actual_semiton_difference = Note.semitones_between_notes root_note new_note in
-    let accidental =
-      match target_semiton_difference - actual_semiton_difference with
-      | -2 -> Accidental.DoubleFlat
+  let next_note root interval =
+    let new_note = Note.set_accidental (note_of_canonical_interval root interval) Accidental.Natural in
+    let target = to_semitones interval in
+    let actual = Note.semitones_between_notes root new_note in
+    let accidental = match target - actual with
+      | -2 -> Accidental.Double_flat
       | -1 -> Accidental.Flat
       | 0 -> Accidental.Natural
       | 1 -> Accidental.Sharp
-      | 2 -> Accidental.DoubleSharp
+      | 2 -> Accidental.Double_sharp
       | _ -> Accidental.Natural
     in
-    new_note |. Note.set_accidental accidental
+    Note.set_accidental new_note accidental
 
-  let to_notes root_note interval = [root_note; root_note |. next_note interval]
+  let to_notes root interval = [root; next_note root interval]
 
-  let add_intervals interval_a interval_b =
-    let n_notes = n_notes_of_interval interval_a + n_notes_of_interval interval_b - 1 in
-    let n_semitones = to_semitones interval_a + to_semitones interval_b in
+  let add_intervals a b =
+    let n_notes = n_notes_of_interval a + n_notes_of_interval b - 1 in
+    let n_semitones = to_semitones a + to_semitones b in
     from_semitones n_notes n_semitones
 
-  let subtract_intervals interval_a interval_b =
-    let n_notes = n_notes_of_interval interval_a - n_notes_of_interval interval_b + 1 in
-    let n_semitones = to_semitones interval_a - to_semitones interval_b in
+  let subtract_intervals a b =
+    let n_notes = n_notes_of_interval a - n_notes_of_interval b + 1 in
+    let n_semitones = to_semitones a - to_semitones b in
     from_semitones n_notes n_semitones
 end
 
@@ -395,18 +307,15 @@ module Intervals = struct
     | [] -> [root]
     | [interval] -> [root; Interval.next_note root interval]
     | interval :: rest ->
-      let next_note = Interval.next_note root interval in
-      let sub_chord =
-        match stack_intervals_relatively next_note rest with
-        | []
-        | [_] -> []
+      let next = Interval.next_note root interval in
+      let tail = match stack_intervals_relatively next rest with
+        | [] | [_] -> []
         | _ :: rest -> rest
       in
-      [root; next_note] |. List.concat(sub_chord)
+      [root; next] |. List.concat tail
 
   let stack_intervals_absolutely root intervals =
-    let notes = List.map intervals (fun interval -> Interval.next_note root interval) in
-    root :: notes
+    root :: List.map intervals (fun interval -> Interval.next_note root interval)
 
   let to_notes intervals root =
     match intervals with
@@ -414,40 +323,32 @@ module Intervals = struct
     | Absolute intervals -> stack_intervals_absolutely root intervals
 
   let relative_intervals_of_notes notes =
-    let rec relative_intervals_of_notes notes =
-      match notes with
-      | root :: next_note :: rest ->
+    let rec aux = function
+      | root :: next :: rest ->
         root
-        |. Interval.from_notes next_note
+        |. Interval.from_notes next
         |. Result.mapWithDefault [] (fun interval -> [interval])
-        |. List.concat (next_note :: rest |. relative_intervals_of_notes)
-      | []
-      | [_] -> []
+        |. List.concat (aux (next :: rest))
+      | [] | [_] -> []
     in
-    Relative (relative_intervals_of_notes notes)
+    Relative (aux notes)
 
   let absolute_intervals_of_notes notes =
-    let rec absolute_intervals_of_notes notes =
-      match notes with
-      | root :: next_note :: rest ->
+    let rec aux = function
+      | root :: next :: rest ->
         root
-        |. Interval.from_notes next_note
+        |. Interval.from_notes next
         |. Result.mapWithDefault [] (fun interval -> [interval])
-        |. List.concat (root :: rest |. absolute_intervals_of_notes)
-      | []
-      | [_] -> []
+        |. List.concat (aux (root :: rest))
+      | [] | [_] -> []
     in
-    Absolute (absolute_intervals_of_notes notes)
+    Absolute (aux notes)
 
   let to_list = function
-    | Absolute intervals
-    | Relative intervals -> intervals
+    | Absolute intervals | Relative intervals -> intervals
 
   let to_string intervals =
-    intervals
-    |. to_list
-    |. List.map (fun i -> Interval.to_string i)
-    |. Utils.string_concat " | "
+    intervals |. to_list |. List.map Interval.to_string |> String.concat " | "
 
   let map intervals f =
     match intervals with
@@ -455,218 +356,236 @@ module Intervals = struct
     | Relative intervals -> Relative (f intervals)
 
   let to_absolute relative_intervals =
-    let rec f relative_intervals =
-      match relative_intervals with
-      | [] -> Result.Ok([])
-      | [_] -> Result.Ok([])
+    let open Result_syntax in
+    let rec fold = function
+      | [] | [_] -> Result.Ok []
       | first :: second :: rest ->
-        let* absolute_interval = Interval.add_intervals first second in
-        let+ absolute_intervals = f (absolute_interval :: rest) in
-        absolute_interval :: absolute_intervals
+        let* combined = Interval.add_intervals first second in
+        let+ tail = fold (combined :: rest) in
+        combined :: tail
     in
     match relative_intervals with
-    | Relative relative_intervals ->
-      let+ absolute_intervals =
-        match relative_intervals with
-        | []
-        | [_] -> Result.Ok relative_intervals
+    | Absolute _ as abs -> Result.Ok abs
+    | Relative rel ->
+      let+ abs = match rel with
+        | [] | [_] -> Result.Ok rel
         | first :: _ ->
-          let+ intervals = f relative_intervals in
-          first :: intervals
+          let+ tail = fold rel in
+          first :: tail
       in
-      Absolute absolute_intervals
-    | Absolute intervals -> Result.Ok (Absolute intervals)
+      Absolute abs
 
   let to_relative absolute_intervals =
-    let rec f reversed_absolute_intervals =
-      match reversed_absolute_intervals with
-      | [] -> Result.Ok []
-      | [_] -> Result.Ok []
+    let open Result_syntax in
+    let rec fold = function
+      | [] | [_] -> Result.Ok []
       | first :: second :: rest ->
-        let* relative_interval = Interval.subtract_intervals first second in
-        let+ relative_intervals = f (second :: rest) in
-        relative_interval :: relative_intervals
+        let* relative = Interval.subtract_intervals first second in
+        let+ tail = fold (second :: rest) in
+        relative :: tail
     in
     match absolute_intervals with
-    | Relative intervals -> Result.Ok (Relative intervals)
-    | Absolute absolute_intervals ->
-      let+ relative_intervals =
-        match absolute_intervals with
-        | []
-        | [_] -> Result.Ok absolute_intervals
+    | Relative _ as rel -> Result.Ok rel
+    | Absolute abs ->
+      let+ rel = match abs with
+        | [] | [_] -> Result.Ok abs
         | first :: _ ->
-          let+ intervals = f (absolute_intervals |. List.reverse) in
-          first :: List.reverse intervals
+          let+ tail = fold (abs |. List.reverse) in
+          first :: List.reverse tail
       in
-      Relative relative_intervals
+      Relative rel
 end
 
 
 module Chord = struct
-  open Interval
-  open Intervals
+  type quality =
+    | Major_triad
+    | Minor_triad
+    | Augmented_triad
+    | Diminished_triad
+    | Suspended_triad
+    | Power_chord
+    | Diminished_power_chord
+    | Augmented_power_chord
+    | Major_seventh
+    | Dominant_seventh
+    | Minor_seventh_major
+    | Minor_seventh
+    | Augmented_major_seventh
+    | Half_diminished_seventh
+    | Diminished_seventh
+    | Suspended_seventh
+    | Seventh_augmented_fifth
+    | Seventh_diminished_fifth
+    | Major_sixth
+    | Minor_sixth
 
-  type t =
-    | MajorTriad of Note.t
-    | MinorTriad of Note.t
-    | AugmentedTriad of Note.t
-    | DiminishedTriad of Note.t
-    | SuspendedTriad of Note.t
-    | PowerChord of Note.t
-    | DiminishedPowerChord of Note.t
-    | AugmentedPowerChord of Note.t
-    | MajorSeventh of Note.t
-    | DominanteSeventh of Note.t
-    | MinorSeventhMajor of Note.t
-    | MinorSeventh of Note.t
-    | AugmentedMajorSeventh of Note.t
-    | HalfDiminishedSeventh of Note.t
-    | DiminishedSeventh of Note.t
-    | SuspendedSeventh of Note.t
-    | SeventhAugmentedFifth of Note.t
-    | SeventhDiminishedFifth of Note.t
-    | MajorSixth of Note.t
-    | MinorSixth of Note.t
+  type t = { root : Note.t; quality : quality }
+
+  let make root quality = { root; quality }
+
+  let quality_to_string = function
+    | Major_triad -> "majorTriad"
+    | Minor_triad -> "minorTriad"
+    | Augmented_triad -> "augmentedTriad"
+    | Diminished_triad -> "diminishedTriad"
+    | Suspended_triad -> "suspendedTriad"
+    | Power_chord -> "powerChord"
+    | Diminished_power_chord -> "diminishedPowerChord"
+    | Augmented_power_chord -> "augmentedPowerChord"
+    | Major_seventh -> "majorSeventh"
+    | Dominant_seventh -> "dominantSeventh"
+    | Minor_seventh_major -> "minorSeventhMajor"
+    | Minor_seventh -> "minorSeventh"
+    | Augmented_major_seventh -> "augmentedMajorSeventh"
+    | Half_diminished_seventh -> "halfDiminishedSeventh"
+    | Diminished_seventh -> "diminishedSeventh"
+    | Suspended_seventh -> "suspendedSeventh"
+    | Seventh_augmented_fifth -> "seventhAugmentedFifth"
+    | Seventh_diminished_fifth -> "seventhDiminishedFifth"
+    | Major_sixth -> "majorSixth"
+    | Minor_sixth -> "minorSixth"
 
   let to_string chord =
-    match chord with
-    | MajorTriad root -> Note.to_string root ^ " majorTriad"
-    | MinorTriad root -> Note.to_string root ^ " minorTriad"
-    | AugmentedTriad root -> Note.to_string root ^ " augmentedTriad"
-    | DiminishedTriad root -> Note.to_string root ^ " diminishedTriad"
-    | SuspendedTriad root -> Note.to_string root ^ " suspendedTriad"
-    | PowerChord root -> Note.to_string root ^ " powerChord"
-    | DiminishedPowerChord root -> Note.to_string root ^ " diminishedPowerChord"
-    | AugmentedPowerChord root -> Note.to_string root ^ " augmentedPowerChord"
-    | MajorSeventh root -> Note.to_string root ^ " majorSeventh"
-    | DominanteSeventh root -> Note.to_string root ^ " dominantSeventh"
-    | MinorSeventhMajor root -> Note.to_string root ^ " minorSeventhMajor"
-    | MinorSeventh root -> Note.to_string root ^ " minorSeventh"
-    | AugmentedMajorSeventh root -> Note.to_string root ^ " augmentedMajorSeventh"
-    | HalfDiminishedSeventh root -> Note.to_string root ^ " halfDiminishedSeventh"
-    | DiminishedSeventh root -> Note.to_string root ^ " diminishedSeventh"
-    | SuspendedSeventh root -> Note.to_string root ^ " suspendedSeventh"
-    | SeventhAugmentedFifth root -> Note.to_string root ^ " seventhAugmentedFifth"
-    | SeventhDiminishedFifth root -> Note.to_string root ^ " seventhDiminishedFifth"
-    | MajorSixth root -> Note.to_string root ^ " majorSixth"
-    | MinorSixth root -> Note.to_string root ^ " minorSixth"
+    Note.to_string chord.root ^ " " ^ quality_to_string chord.quality
 
-  let to_intervals chord =
-    match chord with
-    | MajorTriad _ -> Relative [Major |. Third; Minor |. Third]
-    | MinorTriad _ -> Relative [Minor |. Third; Major |. Third]
-    | AugmentedTriad _ -> Relative [Major |. Third; Major |. Third]
-    | DiminishedTriad _ -> Relative [Minor |. Third; Minor |. Third]
-    | SuspendedTriad _ -> Relative [Perfect |. Fourth; Major |. Second]
-    | PowerChord _ -> Relative [Perfect |. Fifth]
-    | AugmentedPowerChord _ -> Relative [Augmented |. Fifth]
-    | DiminishedPowerChord _ -> Relative [Diminished |. Fifth]
-    | MajorSeventh _ -> Relative [Major |. Third; Minor |. Third; Major |. Third]
-    | DominanteSeventh _ -> Relative [Major |. Third; Minor |. Third; Minor |. Third]
-    | MinorSeventhMajor _ -> Relative [Minor |. Third; Major |. Third; Major |. Third]
-    | MinorSeventh _ -> Relative [Minor |. Third; Major |. Third; Minor |. Third]
-    | AugmentedMajorSeventh _ -> Relative [Major |. Third; Major |. Third; Minor |. Third]
-    | HalfDiminishedSeventh _ ->
-      Absolute [Minor |. Third; Diminished |. Fifth; Minor |. Seventh]
-    | DiminishedSeventh _ ->
-      Absolute [Minor |. Third; Diminished |. Fifth; Diminished |. Seventh]
-    | SuspendedSeventh _ -> Absolute [Perfect |. Fourth; Perfect |. Fifth; Minor |. Seventh]
-    | SeventhAugmentedFifth _ ->
-      Absolute [Major |. Third; Augmented |. Fifth; Minor |. Seventh]
-    | SeventhDiminishedFifth _ ->
-      Absolute [Major |. Third; Diminished |. Fifth; Minor |. Seventh]
-    | MajorSixth _ -> Absolute [Major |.Third; Perfect |. Fifth; Major |. Sixth]
-    | MinorSixth _ -> Absolute [Minor |. Third; Perfect |. Fifth; Major |. Sixth]
+  let to_intervals quality =
+    let open Interval in
+    match quality with
+    | Major_triad -> Intervals.Relative [Major |. Third; Minor |. Third]
+    | Minor_triad -> Intervals.Relative [Minor |. Third; Major |. Third]
+    | Augmented_triad -> Intervals.Relative [Major |. Third; Major |. Third]
+    | Diminished_triad -> Intervals.Relative [Minor |. Third; Minor |. Third]
+    | Suspended_triad -> Intervals.Relative [Perfect |. Fourth; Major |. Second]
+    | Power_chord -> Intervals.Relative [Perfect |. Fifth]
+    | Augmented_power_chord -> Intervals.Relative [Augmented |. Fifth]
+    | Diminished_power_chord -> Intervals.Relative [Diminished |. Fifth]
+    | Major_seventh -> Intervals.Relative [Major |. Third; Minor |. Third; Major |. Third]
+    | Dominant_seventh -> Intervals.Relative [Major |. Third; Minor |. Third; Minor |. Third]
+    | Minor_seventh_major -> Intervals.Relative [Minor |. Third; Major |. Third; Major |. Third]
+    | Minor_seventh -> Intervals.Relative [Minor |. Third; Major |. Third; Minor |. Third]
+    | Augmented_major_seventh -> Intervals.Relative [Major |. Third; Major |. Third; Minor |. Third]
+    | Half_diminished_seventh ->
+      Intervals.Absolute [Minor |. Third; Diminished |. Fifth; Minor |. Seventh]
+    | Diminished_seventh ->
+      Intervals.Absolute [Minor |. Third; Diminished |. Fifth; Diminished |. Seventh]
+    | Suspended_seventh ->
+      Intervals.Absolute [Perfect |. Fourth; Perfect |. Fifth; Minor |. Seventh]
+    | Seventh_augmented_fifth ->
+      Intervals.Absolute [Major |. Third; Augmented |. Fifth; Minor |. Seventh]
+    | Seventh_diminished_fifth ->
+      Intervals.Absolute [Major |. Third; Diminished |. Fifth; Minor |. Seventh]
+    | Major_sixth -> Intervals.Absolute [Major |. Third; Perfect |. Fifth; Major |. Sixth]
+    | Minor_sixth -> Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Major |. Sixth]
 
-  let rec from_intervals root intervals =
+  let rec quality_of_intervals intervals =
+    let open Result_syntax in
+    let open Interval in
     match intervals with
-    | Relative _ ->
-      let* absolute_intervals = to_absolute intervals in
-      from_intervals root absolute_intervals
-    | Absolute absolute_intervals ->
-      match absolute_intervals with
-      | [Third Minor; Fifth Perfect] -> Result.Ok (MinorTriad root)
-      | [Third Major; Fifth Perfect] -> Result.Ok (MajorTriad root)
-      | [Third Minor; Fifth Diminished] -> Result.Ok (DiminishedTriad root)
-      | [Third Major; Fifth Augmented] -> Result.Ok (AugmentedTriad root)
-      | [Third Minor; Fifth Perfect; Seventh Minor] -> Result.Ok (MinorSeventh root)
-      | [Third Major; Fifth Perfect; Seventh Major] -> Result.Ok (MajorSeventh root)
-      | [Third Minor; Fifth Diminished; Seventh Minor] -> Result.Ok (HalfDiminishedSeventh root)
-      | [Third Major; Fifth Perfect; Seventh Minor] -> Result.Ok (DominanteSeventh root)
-      | [Third Minor; Fifth Diminished; Seventh Diminished] -> Result.Ok (DiminishedSeventh root)
-      | [Third Major; Fifth Augmented; Seventh Major] -> Result.Ok (AugmentedMajorSeventh root)
-      | [Third Minor; Fifth Perfect; Seventh Major] -> Result.Ok (MinorSeventhMajor root)
-      | _  -> Result.Error "Could not find matching chord"
+    | Intervals.Relative _ ->
+      let* abs = Intervals.to_absolute intervals in
+      quality_of_intervals abs
+    | Intervals.Absolute abs ->
+      match abs with
+      | [Third Minor; Fifth Perfect] -> Result.Ok Minor_triad
+      | [Third Major; Fifth Perfect] -> Result.Ok Major_triad
+      | [Third Minor; Fifth Diminished] -> Result.Ok Diminished_triad
+      | [Third Major; Fifth Augmented] -> Result.Ok Augmented_triad
+      | [Third Minor; Fifth Perfect; Seventh Minor] -> Result.Ok Minor_seventh
+      | [Third Major; Fifth Perfect; Seventh Major] -> Result.Ok Major_seventh
+      | [Third Minor; Fifth Diminished; Seventh Minor] -> Result.Ok Half_diminished_seventh
+      | [Third Major; Fifth Perfect; Seventh Minor] -> Result.Ok Dominant_seventh
+      | [Third Minor; Fifth Diminished; Seventh Diminished] -> Result.Ok Diminished_seventh
+      | [Third Major; Fifth Augmented; Seventh Major] -> Result.Ok Augmented_major_seventh
+      | [Third Minor; Fifth Perfect; Seventh Major] -> Result.Ok Minor_seventh_major
+      | _ -> Result.Error "Could not find matching chord"
 
-  let to_notes root chord =
-    chord
-    |. to_intervals
-    |. to_notes root
+  let from_intervals root intervals =
+    let open Result_syntax in
+    let+ quality = quality_of_intervals intervals in
+    make root quality
+
+  let to_notes root quality =
+    to_intervals quality |. Intervals.to_notes root
+end
+
+
+module Chords = struct
+  type t = Chord.t list
+
+  let to_string chords =
+    chords |. List.map Chord.to_string |> String.concat " | "
 end
 
 
 module Scale = struct
-  open Interval
-  open Intervals
+  type quality =
+    | Major
+    | Natural_minor
+    | Harmonic_minor
+    | Ionian
+    | Dorian
+    | Phrygian
+    | Lydian
+    | Mixolydian
+    | Aeolian
+    | Locrian
 
-  type t =
-    | MajorScale of Note.t
-    | NaturalMinorScale of Note.t
-    | HarmonicMinorScale of Note.t
-    | IonianMode of Note.t
-    | DorianMode of Note.t
-    | PhrygianMode of Note.t
-    | LydianMode of Note.t
-    | MixolydianMode of Note.t
-    | AeolianMode of Note.t
-    | IocrianMode of Note.t
+  type t = { root : Note.t; quality : quality }
 
-  let string_of_scale scale =
-    match scale with
-    | MajorScale root -> Note.to_string root ^ " Major Scale"
-    | NaturalMinorScale root -> Note.to_string root ^ " Natural Minor"
-    | HarmonicMinorScale root -> Note.to_string root ^ " Harmonic Minor"
-    | IonianMode root -> Note.to_string root ^ " Ionial Mode"
-    | DorianMode root -> Note.to_string root ^ " Dorian Mode"
-    | PhrygianMode root -> Note.to_string root ^ " Phrygian Mode"
-    | LydianMode root -> Note.to_string root ^ " Lydian Mode"
-    | MixolydianMode root -> Note.to_string root ^ " Mixolydian Mode"
-    | AeolianMode root -> Note.to_string root ^ " Aeolian Mode"
-    | IocrianMode root -> Note.to_string root ^ " Iocrian Mode"
+  let make root quality = { root; quality }
+
+  let quality_to_string = function
+    | Major -> "Major Scale"
+    | Natural_minor -> "Natural Minor"
+    | Harmonic_minor -> "Harmonic Minor"
+    | Ionian -> "Ionian Mode"
+    | Dorian -> "Dorian Mode"
+    | Phrygian -> "Phrygian Mode"
+    | Lydian -> "Lydian Mode"
+    | Mixolydian -> "Mixolydian Mode"
+    | Aeolian -> "Aeolian Mode"
+    | Locrian -> "Locrian Mode"
+
+  let to_string scale =
+    Note.to_string scale.root ^ " " ^ quality_to_string scale.quality
 
   let rec get_nth_mode intervals n =
     match n with
     | 0 -> intervals
     | _ ->
       match intervals with
-      | Relative []
-      | Relative [_] -> intervals
-      | Relative (head :: tail) ->
-        get_nth_mode (Relative (List.concat tail [head])) (n - 1)
-      | Absolute _ -> Relative []  (* should handle absolute case *)
+      | Intervals.Relative ([] | [_]) -> intervals
+      | Intervals.Relative (head :: tail) ->
+        get_nth_mode (Intervals.Relative (List.concat tail [head])) (n - 1)
+      | Intervals.Absolute _ -> Intervals.Relative []
 
-  let rec to_intervals scale =
-    match scale with
-    | MajorScale _ ->
+  let major_intervals =
+    let open Interval in
+    Intervals.Relative [
+      Major |. Second;
+      Major |. Second;
+      Minor |. Second;
+      Major |. Second;
+      Major |. Second;
+      Major |. Second;
+      Minor |. Second;
+    ]
+
+  let rec to_intervals quality =
+    let open Interval in
+    match quality with
+    | Major -> major_intervals
+    | Ionian -> get_nth_mode (to_intervals Major) 0
+    | Dorian -> get_nth_mode (to_intervals Major) 1
+    | Phrygian -> get_nth_mode (to_intervals Major) 2
+    | Lydian -> get_nth_mode (to_intervals Major) 3
+    | Mixolydian -> get_nth_mode (to_intervals Major) 4
+    | Aeolian -> get_nth_mode (to_intervals Major) 5
+    | Locrian -> get_nth_mode (to_intervals Major) 6
+    | Natural_minor ->
       Intervals.Relative [
         Major |. Second;
-        Major |. Second;
-        Minor |. Second;
-        Major |. Second;
-        Major |. Second;
-        Major |. Second;
-        Minor |. Second;
-      ]
-    | IonianMode root -> MajorScale root |. to_intervals |. get_nth_mode 0
-    | DorianMode root -> MajorScale root |. to_intervals |. get_nth_mode 1
-    | PhrygianMode root -> MajorScale root |. to_intervals |. get_nth_mode 2
-    | LydianMode root -> MajorScale root |. to_intervals |. get_nth_mode 3
-    | MixolydianMode root -> MajorScale root |. to_intervals |. get_nth_mode 4
-    | AeolianMode root -> MajorScale root |. to_intervals |. get_nth_mode 5
-    | IocrianMode root -> MajorScale root |. to_intervals |. get_nth_mode 6
-    | NaturalMinorScale _ ->
-      Relative [
-        Major |. Second;
         Minor |. Second;
         Major |. Second;
         Major |. Second;
@@ -674,8 +593,8 @@ module Scale = struct
         Major |. Second;
         Major |. Second;
       ]
-    | HarmonicMinorScale _ ->
-      Relative [
+    | Harmonic_minor ->
+      Intervals.Relative [
         Major |. Second;
         Minor |. Second;
         Major |. Second;
@@ -685,16 +604,17 @@ module Scale = struct
         Minor |. Second;
       ]
 
-  let to_notes root scale =
-    (scale |. to_intervals) |. Intervals.to_notes root
+  let to_notes root quality =
+    to_intervals quality |. Intervals.to_notes root
 
-  let to_string intervals =
-    intervals
-    |. List.map Interval.to_string
-    |. Utils.string_concat " -> "
+  let string_of_intervals intervals =
+    intervals |. List.map Interval.to_string |> String.concat " -> "
 end
 
+
 module Harmonization = struct
+  open Result_syntax
+
   let rec result_all = function
     | [] -> Result.Ok []
     | Result.Error e :: _ -> Result.Error ("Matrix has an Error element: " ^ e)
@@ -703,32 +623,121 @@ module Harmonization = struct
       x :: rest
 
   (* see https://www.bluesguitarinstitute.com/how-to-harmonize-a-scale/ *)
-  let get_harmonization_matrix root scale =
-    let intervals = Scale.to_intervals scale in
+  let get_harmonization_matrix root quality =
+    let intervals = Scale.to_intervals quality in
     let intervals_matrix =
       intervals
       |. Intervals.to_list
-      |. List.mapWithIndex (fun i _ -> intervals |. Scale.get_nth_mode i)
+      |. List.mapWithIndex (fun i _ -> Scale.get_nth_mode intervals i)
     in
-    let* first_row_intervals = intervals_matrix |. List.head |> Stdlib.Option.to_result ~none:"empty matrix" in
-    let first_row_notes =  first_row_intervals |. Intervals.to_notes root in
+    let* first_row_intervals =
+      intervals_matrix |. List.head
+      |> Stdlib.Option.to_result ~none:"empty matrix"
+    in
+    let first_row_notes = first_row_intervals |. Intervals.to_notes root in
     intervals_matrix
     |. List.mapWithIndex (fun i intervals ->
-        let+ row_root = first_row_notes |. List.get(i) |> Stdlib.Option.to_result ~none:"no square matrix" in
+        let+ row_root =
+          first_row_notes |. List.get i
+          |> Stdlib.Option.to_result ~none:"no square matrix"
+        in
         intervals |. Intervals.to_notes row_root
       )
     |. result_all
 
   let print_harmonization_matrix matrix =
-    matrix
-    |. List.map (fun notes -> notes |. Notes.string_of_notes)
-    |. Utils.string_concat "\n"
+    matrix |. List.map Notes.string_of_notes |> String.concat "\n"
 
-  let harmonize_scale root scale =
-    let* matrix = get_harmonization_matrix root scale in
+  let harmonize_scale root quality =
+    let* matrix = get_harmonization_matrix root quality in
     matrix
-    |. List.map (fun notes -> notes |. List.keepWithIndex (fun _note index -> List.has [1; 3; 5; 7] (index + 1) (=)))
-    |. List.map (fun notes -> (List.headExn notes, Intervals.relative_intervals_of_notes notes))
+    |. List.map (fun notes ->
+        notes |. List.keepWithIndex (fun _note index ->
+          List.has [1; 3; 5; 7] (index + 1) (=)))
+    |. List.map (fun notes ->
+        (List.headExn notes, Intervals.relative_intervals_of_notes notes))
     |. List.map (fun (root, intervals) -> Chord.from_intervals root intervals)
     |. result_all
+
+  let rec transpose = function
+    | [] -> []
+    | ([] :: _) -> []
+    | rows ->
+      let heads = rows |. List.map List.headExn in
+      let tails = rows |. List.map List.tailExn in
+      heads :: transpose tails
+
+  let transpose_harmonization_matrix matrix =
+    matrix
+    |. List.reduceReverse (Result.Ok []) (fun acc intervals ->
+        match intervals with
+        | Intervals.Absolute _ -> Result.Error "Only relative intervals are supported"
+        | Intervals.Relative intervals ->
+          let+ acc = acc in
+          intervals :: acc
+      )
+    |. Result.map (fun matrix ->
+        matrix |> transpose |. List.map (fun intervals -> Intervals.Relative intervals))
+
+  let filter_list_by_indexes notes indexes =
+    notes |. List.keepWithIndex (fun _note i -> Set.Int.has indexes i)
+
+  let filter_and_maintain_order l indexes =
+    indexes |. Array.reduceReverse (Result.Ok []) (fun acc scale_degree ->
+      let* acc = acc in
+      match l |. List.get scale_degree with
+      | Some chord -> Result.Ok (chord :: acc)
+      | None -> Result.Error "scale degree not found"
+    )
+
+  let to_chords quality chord_degrees scale_degrees =
+    quality
+    |> Scale.to_intervals
+    |. Intervals.to_list
+    |. List.mapWithIndex (fun i _ -> Scale.get_nth_mode (Scale.to_intervals quality) i)
+    |> transpose_harmonization_matrix
+    |. Result.flatMap (fun matrix ->
+        filter_and_maintain_order matrix scale_degrees
+        |. Result.flatMap (fun chords ->
+            chords |. List.reduceReverse (Result.Ok []) (fun acc scale_intervals ->
+              let intervals =
+                scale_intervals
+                |. Intervals.to_absolute
+                |. Result.map (fun intervals ->
+                    Intervals.map intervals (fun intervals ->
+                      filter_list_by_indexes intervals chord_degrees))
+              in
+              match intervals |. Result.flatMap (Chord.quality_of_intervals) with
+              | Result.Ok quality ->
+                let+ acc = acc in
+                quality :: acc
+              | Result.Error msg -> Result.Error msg
+            )
+          )
+      )
+
+  let to_progression quality root chord_degrees scale_degrees =
+    let scale_notes =
+      filter_and_maintain_order (Scale.to_notes root quality) scale_degrees
+    in
+    let scale_chords = to_chords quality chord_degrees scale_degrees in
+    match (scale_notes, scale_chords) with
+    | (Result.Ok notes, Result.Ok chords) ->
+      Result.Ok (
+        List.zip notes chords
+        |. List.map (fun (root, quality) -> Chord.to_notes root quality)
+      )
+    | (Result.Error msg, _) | (_, Result.Error msg) -> Result.Error msg
+
+  let triad_degrees = [|1; 3|] |. Set.Int.fromArray
+  let tetrad_degrees = [|1; 3; 5|] |. Set.Int.fromArray
+  let scale_harmonization_degrees = [|0; 1; 2; 3; 4; 5; 6|]
+
+  let to_triads quality = to_chords quality triad_degrees scale_harmonization_degrees
+  let to_tetrads quality = to_chords quality tetrad_degrees scale_harmonization_degrees
+
+  let to_triad_progression quality root =
+    to_progression quality root triad_degrees scale_harmonization_degrees
+  let to_tetrad_progression quality root =
+    to_progression quality root tetrad_degrees scale_harmonization_degrees
 end
