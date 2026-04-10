@@ -35,10 +35,11 @@
     "serve": "# Serves the React app in a local server"
   },
   "dependencies": {
+    "@testing-library/jest-dom": "^5.10.0",
+    "jest": "^26.5.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "jest": "^26.5.2",
-    "@testing-library/jest-dom": "^5.10.0"
+    "vexflow": "^5.0.0"
   },
   "devDependencies": {
     "webpack": "^5.73.0",
