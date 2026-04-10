@@ -28,6 +28,13 @@ module Accidental = struct
     | Natural -> 0
     | Sharp -> 1
     | Double_sharp -> 2
+
+  let to_vexflow = function
+    | Double_flat -> "bb"
+    | Flat -> "b"
+    | Natural -> ""
+    | Sharp -> "#"
+    | Double_sharp -> "##"
 end
 
 module Note = struct
@@ -76,6 +83,32 @@ module Note = struct
   let semitones_between_notes a b =
     let delta = to_semitones b - to_semitones a in
     if delta < 0 then semitones_in_octave + delta else delta
+
+  let to_vexflow_key note =
+    let pc = match note.pitch_class with
+      | C -> "C" | D -> "D" | E -> "E" | F -> "F"
+      | G -> "G" | A -> "A" | B -> "B"
+    in
+    pc ^ Accidental.to_vexflow note.accidental
+
+  let to_vexflow_note note octave =
+    let pc = match note.pitch_class with
+      | C -> "c" | D -> "d" | E -> "e" | F -> "f"
+      | G -> "g" | A -> "a" | B -> "b"
+    in
+    pc ^ Accidental.to_vexflow note.accidental ^ "/" ^ string_of_int octave
+
+  let assign_octaves notes =
+    match notes with
+    | [] -> []
+    | first :: rest ->
+      let _, result = Stdlib.List.fold_left (fun (prev_semitones, acc) note ->
+        let s = pitch_class_to_semitones note.pitch_class in
+        let octave = if s <= prev_semitones then 5 else 4 in
+        (s, (note, octave) :: acc)
+      ) (pitch_class_to_semitones first.pitch_class, [(first, 4)]) rest
+      in
+      Stdlib.List.rev result
 end
 
 
@@ -609,6 +642,20 @@ module Scale = struct
 
   let string_of_intervals intervals =
     intervals |. List.map Interval.to_string |> String.concat " -> "
+
+  (* Map scale quality + root to VexFlow key signature string.
+     For modes, derive the parent major key. *)
+  let to_vexflow_key root quality =
+    let open Interval in
+    match quality with
+    | Major | Ionian -> Note.to_vexflow_key root
+    | Dorian -> Note.to_vexflow_key (next_note root (Minor |. Seventh))
+    | Phrygian -> Note.to_vexflow_key (next_note root (Minor |. Sixth))
+    | Lydian -> Note.to_vexflow_key (next_note root (Perfect |. Fifth))
+    | Mixolydian -> Note.to_vexflow_key (next_note root (Perfect |. Fourth))
+    | Aeolian | Natural_minor -> Note.to_vexflow_key root ^ "m"
+    | Locrian -> Note.to_vexflow_key (next_note root (Minor |. Second))
+    | Harmonic_minor -> Note.to_vexflow_key root ^ "m"
 end
 
 
