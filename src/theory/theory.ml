@@ -677,8 +677,12 @@ module Chord = struct
     to_intervals quality |. Intervals.to_notes root
 
   let tone_labels quality =
-    let intervals = to_intervals quality |. Intervals.to_list in
-    "R" :: (intervals |. List.map Interval.to_chord_label)
+    let abs = to_intervals quality
+      |. Intervals.to_absolute
+      |. Result.getWithDefault (Intervals.Absolute [])
+      |. Intervals.to_list
+    in
+    "R" :: (abs |. List.map Interval.to_chord_label)
 
   let has_minor_third = function
     | Minor_triad | Minor_seventh | Minor_seventh_major
