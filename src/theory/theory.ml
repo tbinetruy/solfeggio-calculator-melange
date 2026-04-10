@@ -109,11 +109,18 @@ module Note = struct
     match notes with
     | [] -> []
     | first :: rest ->
+      let root_semitones = to_semitones first in
       let _, result = Stdlib.List.fold_left (fun (prev_semitones, acc) note ->
-        let s = pitch_class_to_semitones note.pitch_class in
-        let octave = if s <= prev_semitones then 5 else 4 in
-        (s, (note, octave) :: acc)
-      ) (pitch_class_to_semitones first.pitch_class, [(first, 4)]) rest
+        let s = to_semitones note in
+        (* Absolute semitone position: start at root, go up.
+           If this note's semitones are <= previous, it wrapped the octave. *)
+        let abs_semitones =
+          if s <= prev_semitones then s + 12
+          else s
+        in
+        let octave = if abs_semitones - root_semitones >= 12 then 5 else 4 in
+        (abs_semitones, (note, octave) :: acc)
+      ) (root_semitones, [(first, 4)]) rest
       in
       Stdlib.List.rev result
 end
