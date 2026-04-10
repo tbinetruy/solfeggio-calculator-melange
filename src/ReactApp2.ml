@@ -145,20 +145,26 @@ module AnnotatedFretboard = struct
       match quality with
       | Some q when n >= 5 ->
         let labels = Chord.tone_labels q in
+        let last = n - 1 in
         div ~style:tone_toggle_style ~children:[
           labels |. List.mapWithIndex (fun i lbl ->
-            let checked = Array.getExn enabled i in
-            label ~key:(string_of_int i) ~style:tone_item_style ~children:[
-              input ~type_:"checkbox" ~checked
-                ~onChange:(fun _ ->
-                  set_enabled (fun prev ->
-                    let next = Array.copy prev in
-                    Array.setExn next i (not (Array.getExn prev i));
-                    next
-                  )
-                ) () [@JSX];
-              React.string lbl;
-            ] () [@JSX]
+            let locked = i = 0 || i = last in
+            if locked then
+              span ~key:(string_of_int i) ~style:tone_item_style
+                ~children:[React.string lbl] () [@JSX]
+            else
+              let checked = Array.getExn enabled i in
+              label ~key:(string_of_int i) ~style:tone_item_style ~children:[
+                input ~type_:"checkbox" ~checked
+                  ~onChange:(fun _ ->
+                    set_enabled (fun prev ->
+                      let next = Array.copy prev in
+                      Array.setExn next i (not (Array.getExn prev i));
+                      next
+                    )
+                  ) () [@JSX];
+                React.string lbl;
+              ] () [@JSX]
           ) |. List.toArray |. React.array
         ] () [@JSX]
       | _ ->
