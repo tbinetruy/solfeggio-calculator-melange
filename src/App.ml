@@ -242,9 +242,20 @@ module App = struct
       | (None, None, None) -> ([], false)
     in
 
-    let key_signature = match scale_quality with
-      | Some quality -> Scale.to_vexflow_key root quality
-      | None -> "C"
+    let key_signature =
+      let key = match scale_quality with
+        | Some quality -> Scale.to_vexflow_key root quality
+        | None -> "C"
+      in
+      (* VexFlow only supports standard circle-of-fifths keys.
+         Fall back to "C" (no key sig, accidentals on notes) for others. *)
+      let valid_keys = [
+        "C"; "G"; "D"; "A"; "E"; "B"; "F#"; "C#"; "Cb";
+        "F"; "Bb"; "Eb"; "Ab"; "Db"; "Gb";
+        "Am"; "Em"; "Bm"; "F#m"; "C#m"; "G#m"; "D#m"; "A#m";
+        "Dm"; "Gm"; "Cm"; "Fm"; "Bbm"; "Ebm"; "Abm";
+      ] in
+      if Stdlib.List.mem key valid_keys then key else "C"
     in
 
     let harmonization_triad_chords = scale_quality |. Option.mapWithDefault "" (fun quality ->

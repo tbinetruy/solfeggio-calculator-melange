@@ -83,7 +83,11 @@ let make ~notes ~key_signature ~sequential =
      | Some el ->
        let _ = [%mel.raw {|el.innerHTML = ""|}] in
        (match notes with
-        | _ :: _ -> render_notation el notes key_signature ~sequential
+        | _ :: _ ->
+          (try render_notation el notes key_signature ~sequential
+           with _ ->
+             let _ = [%mel.raw {|el.innerHTML = ""|}] in
+             render_notation el notes "C" ~sequential)
         | [] -> ())
      | None -> ());
     None
