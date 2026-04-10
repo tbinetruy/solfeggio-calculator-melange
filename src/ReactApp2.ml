@@ -237,10 +237,13 @@ module App = struct
       [
         Some Major_triad; Some Minor_triad; Some Augmented_triad; Some Diminished_triad;
         Some Suspended_triad; Some Power_chord; Some Diminished_power_chord; Some Augmented_power_chord;
+        Some Major_sixth; Some Minor_sixth; Some Major_six_nine; Some Minor_six_nine;
         Some Major_seventh; Some Dominant_seventh; Some Minor_seventh_major; Some Minor_seventh;
         Some Augmented_major_seventh; Some Half_diminished_seventh; Some Diminished_seventh;
         Some Suspended_seventh; Some Seventh_augmented_fifth; Some Seventh_diminished_fifth;
-        Some Major_sixth; Some Minor_sixth;
+        Some Major_ninth; Some Dominant_ninth; Some Minor_ninth; Some Minor_major_ninth;
+        Some Dominant_eleventh; Some Minor_eleventh;
+        Some Dominant_thirteenth; Some Minor_thirteenth;
         None;
       ]
       |> Stdlib.List.fold_left (fun acc el ->

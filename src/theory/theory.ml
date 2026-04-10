@@ -232,6 +232,9 @@ module Interval = struct
     | Sixth of MajorMinorQuality.t
     | Seventh of MajorMinorQuality.t
     | Octave
+    | Ninth of MajorMinorQuality.t
+    | Eleventh of PerfectQuality.t
+    | Thirteenth of MajorMinorQuality.t
 
   let to_semitones = function
     | Unison -> 0
@@ -242,6 +245,9 @@ module Interval = struct
     | Sixth q -> 9 + MajorMinorQuality.to_semitones q
     | Seventh q -> 11 + MajorMinorQuality.to_semitones q
     | Octave -> semitones_in_octave
+    | Ninth q -> 14 + MajorMinorQuality.to_semitones q
+    | Eleventh q -> 17 + PerfectQuality.to_semitones q
+    | Thirteenth q -> 21 + MajorMinorQuality.to_semitones q
 
   let n_notes_of_interval = function
     | Unison -> 1
@@ -252,6 +258,9 @@ module Interval = struct
     | Sixth _ -> 6
     | Seventh _ -> 7
     | Octave -> 8
+    | Ninth _ -> 9
+    | Eleventh _ -> 11
+    | Thirteenth _ -> 13
 
   (* Build an interval from note count + semitone count.
      Uses the reference semitones for each interval number to compute quality offset. *)
@@ -276,7 +285,13 @@ module Interval = struct
     | 8 ->
       if n_semitones = 12 then Result.Ok Octave
       else Result.Error "semitones != 12 are not supported with Octave"
-    | _ -> Result.Error "n_notes > 8 (Octave) are not supported"
+    | 9 ->
+      let+ q = MajorMinorQuality.of_semitones (n_semitones - 14) in Ninth q
+    | 11 ->
+      let+ q = PerfectQuality.of_semitones (n_semitones - 17) in Eleventh q
+    | 13 ->
+      let+ q = MajorMinorQuality.of_semitones (n_semitones - 21) in Thirteenth q
+    | _ -> Result.Error ("unsupported interval with " ^ string_of_int n_notes ^ " notes")
 
   let to_string = function
     | Unison -> "P1"
@@ -287,6 +302,9 @@ module Interval = struct
     | Sixth q -> MajorMinorQuality.to_string q ^ "6"
     | Seventh q -> MajorMinorQuality.to_string q ^ "7"
     | Octave -> "P8"
+    | Ninth q -> MajorMinorQuality.to_string q ^ "9"
+    | Eleventh q -> PerfectQuality.to_string q ^ "11"
+    | Thirteenth q -> MajorMinorQuality.to_string q ^ "13"
 
   let rec interval_number_of_notes note_a note_b acc =
     if Note.is_same_pitch_class note_a note_b then acc
@@ -309,10 +327,15 @@ module Interval = struct
   let note_of_generic_interval root interval =
     Note.get_nth_note root (n_notes_of_interval interval - 1)
 
+  let is_compound = function
+    | Ninth _ | Eleventh _ | Thirteenth _ -> true
+    | _ -> false
+
   let next_note root interval =
     let new_note = Note.set_accidental (note_of_generic_interval root interval) Accidental.Natural in
     let target = to_semitones interval in
-    let actual = Note.semitones_between_notes root new_note in
+    let actual_simple = Note.semitones_between_notes root new_note in
+    let actual = if is_compound interval then actual_simple + 12 else actual_simple in
     let accidental = match target - actual with
       | -2 -> Accidental.Double_flat
       | -1 -> Accidental.Flat
@@ -459,6 +482,16 @@ module Chord = struct
     | Seventh_diminished_fifth
     | Major_sixth
     | Minor_sixth
+    | Major_ninth
+    | Dominant_ninth
+    | Minor_ninth
+    | Minor_major_ninth
+    | Dominant_eleventh
+    | Minor_eleventh
+    | Dominant_thirteenth
+    | Minor_thirteenth
+    | Major_six_nine
+    | Minor_six_nine
 
   type t = { root : Note.t; quality : quality }
 
@@ -485,6 +518,16 @@ module Chord = struct
     | Seventh_diminished_fifth -> {js|7♭5|js}
     | Major_sixth -> "6"
     | Minor_sixth -> "m6"
+    | Major_ninth -> {js|△9|js}
+    | Dominant_ninth -> "9"
+    | Minor_ninth -> "m9"
+    | Minor_major_ninth -> {js|m△9|js}
+    | Dominant_eleventh -> "11"
+    | Minor_eleventh -> "m11"
+    | Dominant_thirteenth -> "13"
+    | Minor_thirteenth -> "m13"
+    | Major_six_nine -> "6/9"
+    | Minor_six_nine -> "m6/9"
 
   let to_string chord =
     Note.to_string chord.root ^ " " ^ quality_to_string chord.quality
@@ -517,6 +560,26 @@ module Chord = struct
       Intervals.Absolute [Major |. Third; Diminished |. Fifth; Minor |. Seventh]
     | Major_sixth -> Intervals.Absolute [Major |. Third; Perfect |. Fifth; Major |. Sixth]
     | Minor_sixth -> Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Major |. Sixth]
+    | Major_ninth ->
+      Intervals.Absolute [Major |. Third; Perfect |. Fifth; Major |. Seventh; Major |. Ninth]
+    | Dominant_ninth ->
+      Intervals.Absolute [Major |. Third; Perfect |. Fifth; Minor |. Seventh; Major |. Ninth]
+    | Minor_ninth ->
+      Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Minor |. Seventh; Major |. Ninth]
+    | Minor_major_ninth ->
+      Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Major |. Seventh; Major |. Ninth]
+    | Dominant_eleventh ->
+      Intervals.Absolute [Major |. Third; Perfect |. Fifth; Minor |. Seventh; Major |. Ninth; Perfect |. Eleventh]
+    | Minor_eleventh ->
+      Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Minor |. Seventh; Major |. Ninth; Perfect |. Eleventh]
+    | Dominant_thirteenth ->
+      Intervals.Absolute [Major |. Third; Perfect |. Fifth; Minor |. Seventh; Major |. Ninth; Major |. Thirteenth]
+    | Minor_thirteenth ->
+      Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Minor |. Seventh; Major |. Ninth; Major |. Thirteenth]
+    | Major_six_nine ->
+      Intervals.Absolute [Major |. Third; Perfect |. Fifth; Major |. Sixth; Major |. Ninth]
+    | Minor_six_nine ->
+      Intervals.Absolute [Minor |. Third; Perfect |. Fifth; Major |. Sixth; Major |. Ninth]
 
   let rec quality_of_intervals intervals =
     let open Result_syntax in
@@ -538,6 +601,16 @@ module Chord = struct
       | [Third Minor; Fifth Diminished; Seventh Diminished] -> Result.Ok Diminished_seventh
       | [Third Major; Fifth Augmented; Seventh Major] -> Result.Ok Augmented_major_seventh
       | [Third Minor; Fifth Perfect; Seventh Major] -> Result.Ok Minor_seventh_major
+      | [Third Major; Fifth Perfect; Seventh Major; Ninth Major] -> Result.Ok Major_ninth
+      | [Third Major; Fifth Perfect; Seventh Minor; Ninth Major] -> Result.Ok Dominant_ninth
+      | [Third Minor; Fifth Perfect; Seventh Minor; Ninth Major] -> Result.Ok Minor_ninth
+      | [Third Minor; Fifth Perfect; Seventh Major; Ninth Major] -> Result.Ok Minor_major_ninth
+      | [Third Major; Fifth Perfect; Seventh Minor; Ninth Major; Eleventh Perfect] -> Result.Ok Dominant_eleventh
+      | [Third Minor; Fifth Perfect; Seventh Minor; Ninth Major; Eleventh Perfect] -> Result.Ok Minor_eleventh
+      | [Third Major; Fifth Perfect; Seventh Minor; Ninth Major; Thirteenth Major] -> Result.Ok Dominant_thirteenth
+      | [Third Minor; Fifth Perfect; Seventh Minor; Ninth Major; Thirteenth Major] -> Result.Ok Minor_thirteenth
+      | [Third Major; Fifth Perfect; Sixth Major; Ninth Major] -> Result.Ok Major_six_nine
+      | [Third Minor; Fifth Perfect; Sixth Major; Ninth Major] -> Result.Ok Minor_six_nine
       | _ -> Result.Error "Could not find matching chord"
 
   let from_intervals root intervals =

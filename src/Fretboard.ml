@@ -28,11 +28,11 @@ module ColoredNote = struct
 
   let interval_to_color = function
     | Interval.Unison | Interval.Octave -> "#416ab0"
-    | Interval.Second _ -> "#6290bf"
+    | Interval.Second _ | Interval.Ninth _ -> "#6290bf"
     | Interval.Third _ -> "#80b0cc"
-    | Interval.Fourth _ -> "#9bccd5"
+    | Interval.Fourth _ | Interval.Eleventh _ -> "#9bccd5"
     | Interval.Fifth _ -> "#b6e2dc"
-    | Interval.Sixth _ -> "#cff2e0"
+    | Interval.Sixth _ | Interval.Thirteenth _ -> "#cff2e0"
     | Interval.Seventh _ -> "#e8fce1"
 
   let note_info_to_color = function
