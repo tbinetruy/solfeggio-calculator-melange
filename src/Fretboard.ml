@@ -109,7 +109,7 @@ module GuitarString = struct
       ~width:"2rem" ~height:"1rem"
       ~borderBottom:"1px solid black" () in
     notes
-    |> Notes.get_tonic
+    |> Notes.get_root
     |. Option.mapWithDefault
       (div ~children:[React.string "Error"] () [@JSX])
       (fun tonic ->

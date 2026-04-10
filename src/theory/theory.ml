@@ -45,7 +45,7 @@ module Note = struct
 
   let set_accidental note accidental = { note with accidental }
 
-  let is_same_note_family a b = a.pitch_class = b.pitch_class
+  let is_same_pitch_class a b = a.pitch_class = b.pitch_class
 
   let pitch_class_to_string = function
     | C -> "C" | D -> "D" | E -> "E" | F -> "F"
@@ -93,7 +93,7 @@ module Notes = struct
   let subtract notes_a notes_b =
     notes_a |. List.keep (fun note -> not (has_note note notes_b))
 
-  let get_tonic = List.head
+  let get_root = List.head
 end
 
 
@@ -249,7 +249,7 @@ module Interval = struct
     | Octave -> "octave"
 
   let rec interval_number_of_notes note_a note_b acc =
-    if Note.is_same_note_family note_a note_b then acc
+    if Note.is_same_pitch_class note_a note_b then acc
     else interval_number_of_notes (Note.get_next_note note_a) note_b (acc + 1)
 
   let from_notes note_a note_b =
@@ -266,11 +266,11 @@ module Interval = struct
     | 7 -> Result.Ok Octave
     | _ -> Result.Error "n_notes > 8 (Octave) are not supported"
 
-  let note_of_canonical_interval root interval =
+  let note_of_generic_interval root interval =
     Note.get_nth_note root (n_notes_of_interval interval - 1)
 
   let next_note root interval =
-    let new_note = Note.set_accidental (note_of_canonical_interval root interval) Accidental.Natural in
+    let new_note = Note.set_accidental (note_of_generic_interval root interval) Accidental.Natural in
     let target = to_semitones interval in
     let actual = Note.semitones_between_notes root new_note in
     let accidental = match target - actual with
