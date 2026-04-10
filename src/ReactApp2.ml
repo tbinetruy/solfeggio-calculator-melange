@@ -258,8 +258,10 @@ module App = struct
     in
 
     let string_of_progression_type degrees =
-      degrees |. Array.reduce "" (fun acc n ->
-        acc ^ string_of_int (n + 1) ^ " ")
+      degrees
+      |. Array.map (fun n -> string_of_int (n + 1))
+      |> Stdlib.Array.to_list
+      |> String.concat "-"
     in
 
     let progression_type_spec =
