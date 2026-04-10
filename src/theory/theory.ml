@@ -680,6 +680,13 @@ module Chord = struct
   let tone_labels quality =
     let intervals = to_intervals quality |. Intervals.to_list in
     "R" :: (intervals |. List.map Interval.to_chord_label)
+
+  let has_minor_third = function
+    | Minor_triad | Minor_seventh | Minor_seventh_major
+    | Minor_ninth | Minor_major_ninth | Minor_eleventh | Minor_thirteenth
+    | Minor_sixth | Minor_six_nine
+    | Half_diminished_seventh | Diminished_triad | Diminished_seventh -> true
+    | _ -> false
 end
 
 

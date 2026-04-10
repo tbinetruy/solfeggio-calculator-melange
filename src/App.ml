@@ -86,10 +86,26 @@ module FlexRow = struct
 end
 
 
+let roman_upper = function
+  | 0 -> "I" | 1 -> "II" | 2 -> "III" | 3 -> "IV"
+  | 4 -> "V" | 5 -> "VI" | 6 -> "VII" | _ -> "?"
+
+let roman_lower = function
+  | 0 -> "i" | 1 -> "ii" | 2 -> "iii" | 3 -> "iv"
+  | 4 -> "v" | 5 -> "vi" | 6 -> "vii" | _ -> "?"
+
+let jazz_numeral degree quality =
+  let is_minor = Chord.has_minor_third quality in
+  let numeral = if is_minor then roman_lower degree else roman_upper degree in
+  let symbol = Chord.quality_to_string quality in
+  let symbol = if is_minor then
+    let len = String.length symbol in
+    if len > 0 && symbol.[0] = 'm' then String.sub symbol 1 (len - 1)
+    else symbol
+  else symbol in
+  numeral ^ symbol
+
 module AnnotatedFretboard = struct
-  let roman_numeral = function
-    | 0 -> "I" | 1 -> "II" | 2 -> "III" | 3 -> "IV"
-    | 4 -> "V" | 5 -> "VI" | 6 -> "VII" | _ -> "?"
 
   let tone_toggle_style = ReactDOM.Style.make
     ~display:"flex" ~alignItems:"center" ~gap:"0.5rem"
@@ -128,17 +144,22 @@ module AnnotatedFretboard = struct
       |. Result.mapWithDefault None (fun q -> Some q)
     in
 
-    let chord_name =
+    let filtered_quality =
       filtered_notes
       |> Intervals.absolute_intervals_of_notes
       |> Chord.quality_of_intervals
-      |. Result.mapWithDefault "" (fun q ->
-          " (" ^ Chord.quality_to_string q ^ ")")
+      |. Result.mapWithDefault None (fun q -> Some q)
     in
 
-    let prefix = match degree with
-      | Some d -> roman_numeral d ^ ": "
+    let chord_name = match filtered_quality with
+      | Some q -> " (" ^ Chord.quality_to_string q ^ ")"
       | None -> ""
+    in
+
+    let prefix = match (degree, quality) with
+      | (Some d, Some q) -> jazz_numeral d q ^ ": "
+      | (Some d, None) -> roman_upper d ^ ": "
+      | (None, _) -> ""
     in
 
     let tone_toggles =
@@ -171,8 +192,12 @@ module AnnotatedFretboard = struct
         React.null
     in
 
+    let header = match degree with
+      | Some _ -> prefix ^ Notes.string_of_notes filtered_notes
+      | None -> Notes.string_of_notes filtered_notes ^ chord_name
+    in
     div ~style:Styles.fretboard_card ~children:[
-      div ~style:Styles.chord_header ~children:[React.string (prefix ^ Notes.string_of_notes filtered_notes ^ chord_name)] () [@JSX];
+      div ~style:Styles.chord_header ~children:[React.string header] () [@JSX];
       tone_toggles;
       div ~style:Styles.interval_line ~children:[React.string (filtered_notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
       div ~style:Styles.interval_line ~children:[React.string (filtered_notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
@@ -225,7 +250,7 @@ module App = struct
     let harmonization_triad_chords = scale_quality |. Option.mapWithDefault "" (fun quality ->
       match Harmonization.to_triads quality with
       | Result.Ok chords ->
-        chords |. List.map Chord.quality_to_string |> String.concat " | "
+        chords |. List.mapWithIndex (fun i q -> jazz_numeral i q) |> String.concat " | "
       | Result.Error msg -> msg
     ) in
 
@@ -238,7 +263,7 @@ module App = struct
     let harmonization_tetrad_chords = scale_quality |. Option.mapWithDefault "" (fun quality ->
       match Harmonization.to_tetrads quality with
       | Result.Ok chords ->
-        chords |. List.map Chord.quality_to_string |> String.concat " | "
+        chords |. List.mapWithIndex (fun i q -> jazz_numeral i q) |> String.concat " | "
       | Result.Error msg -> msg
     ) in
 
