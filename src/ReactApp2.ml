@@ -87,7 +87,11 @@ end
 
 
 module AnnotatedFretboard = struct
-  let make ~notes ~tuning ~key_signature ?(extra_notes=[]) () =
+  let roman_numeral = function
+    | 0 -> "I" | 1 -> "II" | 2 -> "III" | 3 -> "IV"
+    | 4 -> "V" | 5 -> "VI" | 6 -> "VII" | _ -> "?"
+
+  let make ~notes ~tuning ~key_signature ?(degree=None) ?(extra_notes=[]) () =
     let chord_name =
       notes
       |> Intervals.absolute_intervals_of_notes
@@ -95,8 +99,12 @@ module AnnotatedFretboard = struct
       |. Result.mapWithDefault "" (fun quality ->
           " (" ^ Chord.quality_to_string quality ^ ")")
     in
+    let prefix = match degree with
+      | Some d -> roman_numeral d ^ ": "
+      | None -> ""
+    in
     div ~style:Styles.fretboard_card ~children:[
-      div ~style:Styles.chord_header ~children:[React.string (Notes.string_of_notes notes ^ chord_name)] () [@JSX];
+      div ~style:Styles.chord_header ~children:[React.string (prefix ^ Notes.string_of_notes notes ^ chord_name)] () [@JSX];
       div ~style:Styles.interval_line ~children:[React.string (notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
       div ~style:Styles.interval_line ~children:[React.string (notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
       Staff.createElement ~notes ~key_signature () [@JSX];
@@ -281,13 +289,14 @@ module App = struct
     let progression =
       (match (scale_quality, progression_type) with
        | (Some quality, Some degrees) ->
-         Harmonization.to_progression quality root Harmonization.tetrad_degrees degrees
-         |. Result.getWithDefault []
+         let chords = Harmonization.to_progression quality root Harmonization.tetrad_degrees degrees
+           |. Result.getWithDefault [] in
+         List.zip chords (degrees |. List.fromArray)
        | _ -> [])
-      |. List.mapWithIndex (fun i chord_notes ->
+      |. List.mapWithIndex (fun i (chord_notes, deg) ->
         let extra_notes = Notes.subtract notes chord_notes in
         AnnotatedFretboard.createElement
-          ~notes:chord_notes ~tuning ~key_signature ~extra_notes
+          ~notes:chord_notes ~tuning ~key_signature ~degree:(Some deg) ~extra_notes
           ~key:(string_of_int i) () [@JSX]
       )
       |. List.toArray
