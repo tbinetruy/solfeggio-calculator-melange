@@ -98,6 +98,13 @@ module Note = struct
     in
     pc ^ Accidental.to_vexflow note.accidental ^ "/" ^ string_of_int octave
 
+  let to_tonejs_note note octave =
+    let pc = match note.pitch_class with
+      | C -> "C" | D -> "D" | E -> "E" | F -> "F"
+      | G -> "G" | A -> "A" | B -> "B"
+    in
+    pc ^ Accidental.to_vexflow note.accidental ^ string_of_int octave
+
   let assign_octaves notes =
     match notes with
     | [] -> []

@@ -30,7 +30,7 @@ let render_staff container ~width ~key_signature ~stave_notes ~num_beats =
   let _ = Formatter.format formatter [|voice|] (width - 120) in
   Voice.draw voice context stave
 
-let render container notes key_signature =
+let render_notation container notes key_signature =
   let noted = Note.assign_octaves notes in
   let n = Stdlib.List.length noted in
   if n > 4 then
@@ -45,6 +45,38 @@ let render container notes key_signature =
     render_staff container
       ~width:300 ~key_signature ~stave_notes ~num_beats:4
 
+let play_notes notes =
+  let open Tone_bindgen in
+  let noted = Note.assign_octaves notes in
+  let n = Stdlib.List.length noted in
+  let synth = PolySynth.make () |> PolySynth.to_destination in
+  let _ = start () |> Js.Promise.then_ (fun () ->
+    if n > 4 then begin
+      let t = now () in
+      noted |> Stdlib.List.iteri (fun i (note, octave) ->
+        PolySynth.trigger_attack_release_at synth
+          [|Note.to_tonejs_note note octave|] "8n" (t +. Float.of_int i *. 0.3)
+      )
+    end else begin
+      let tone_notes = noted
+        |> Stdlib.List.map (fun (note, octave) -> Note.to_tonejs_note note octave)
+        |> Stdlib.Array.of_list
+      in
+      PolySynth.trigger_attack_release synth tone_notes "2n"
+    end;
+    Js.Promise.resolve ()
+  ) in
+  ()
+
+let play_button_style = ReactDOM.Style.make
+  ~background:"none" ~border:"1px solid #ccc" ~borderRadius:"50%"
+  ~width:"2rem" ~height:"2rem" ~cursor:"pointer"
+  ~display:"flex" ~alignItems:"center" ~justifyContent:"center"
+  ~fontSize:"0.9rem" ~color:"#555" ~flexShrink:"0" ()
+
+let wrapper_style = ReactDOM.Style.make
+  ~display:"flex" ~alignItems:"center" ~gap:"0.5rem" ()
+
 let make ~notes ~key_signature =
   let container_ref = React.useRef Js.Nullable.null in
   React.useEffect2 (fun () ->
@@ -52,12 +84,17 @@ let make ~notes ~key_signature =
      | Some el ->
        let _ = [%mel.raw {|el.innerHTML = ""|}] in
        (match notes with
-        | _ :: _ -> render el notes key_signature
+        | _ :: _ -> render_notation el notes key_signature
         | [] -> ())
      | None -> ());
     None
   ) (notes, key_signature);
-  div ~ref:(ReactDOM.Ref.domRef container_ref)
-    ~style:(ReactDOM.Style.make ~minHeight:"150px" ())
-    ~children:[] () [@JSX]
+  div ~style:wrapper_style ~children:[
+    div ~ref:(ReactDOM.Ref.domRef container_ref)
+      ~style:(ReactDOM.Style.make ~minHeight:"150px" ~flexGrow:"1" ())
+      ~children:[] () [@JSX];
+    button ~style:play_button_style
+      ~onClick:(fun _ -> play_notes notes)
+      ~children:[React.string {js|▶|js}] () [@JSX];
+  ] () [@JSX]
 [@@react.component]
