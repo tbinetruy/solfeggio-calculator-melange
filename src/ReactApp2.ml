@@ -91,24 +91,87 @@ module AnnotatedFretboard = struct
     | 0 -> "I" | 1 -> "II" | 2 -> "III" | 3 -> "IV"
     | 4 -> "V" | 5 -> "VI" | 6 -> "VII" | _ -> "?"
 
+  let tone_toggle_style = ReactDOM.Style.make
+    ~display:"flex" ~alignItems:"center" ~gap:"0.5rem"
+    ~flexWrap:"wrap" ~marginBottom:"0.25rem" ()
+
+  let tone_item_style = ReactDOM.Style.make
+    ~display:"flex" ~alignItems:"center" ~gap:"0.15rem"
+    ~cursor:"pointer" ~fontSize:"0.85rem"
+    ~fontFamily:"'SF Mono', 'Fira Code', monospace" ()
+
   let make ~notes ~tuning ~key_signature ?(degree=None) ?(extra_notes=[]) () =
-    let chord_name =
+    let n = List.length notes in
+    let (enabled, set_enabled) = React.useState (fun () ->
+      Array.make n true
+    ) in
+
+    (* Reset enabled state when notes change *)
+    React.useEffect1 (fun () ->
+      set_enabled (fun _ -> Array.make (List.length notes) true);
+      None
+    ) [|n|];
+
+    let filtered_notes =
+      if Array.length enabled <> n then notes
+      else
+        notes
+        |. List.toArray
+        |. Array.keepWithIndex (fun _note i -> Array.getExn enabled i)
+        |. List.fromArray
+    in
+
+    let quality =
       notes
       |> Intervals.absolute_intervals_of_notes
       |> Chord.quality_of_intervals
-      |. Result.mapWithDefault "" (fun quality ->
-          " (" ^ Chord.quality_to_string quality ^ ")")
+      |. Result.mapWithDefault None (fun q -> Some q)
     in
+
+    let chord_name =
+      filtered_notes
+      |> Intervals.absolute_intervals_of_notes
+      |> Chord.quality_of_intervals
+      |. Result.mapWithDefault "" (fun q ->
+          " (" ^ Chord.quality_to_string q ^ ")")
+    in
+
     let prefix = match degree with
       | Some d -> roman_numeral d ^ ": "
       | None -> ""
     in
+
+    let tone_toggles =
+      match quality with
+      | Some q when n >= 5 ->
+        let labels = Chord.tone_labels q in
+        div ~style:tone_toggle_style ~children:[
+          labels |. List.mapWithIndex (fun i lbl ->
+            let checked = Array.getExn enabled i in
+            label ~key:(string_of_int i) ~style:tone_item_style ~children:[
+              input ~type_:"checkbox" ~checked
+                ~onChange:(fun _ ->
+                  set_enabled (fun prev ->
+                    let next = Array.copy prev in
+                    Array.setExn next i (not (Array.getExn prev i));
+                    next
+                  )
+                ) () [@JSX];
+              React.string lbl;
+            ] () [@JSX]
+          ) |. List.toArray |. React.array
+        ] () [@JSX]
+      | _ ->
+        React.null
+    in
+
     div ~style:Styles.fretboard_card ~children:[
-      div ~style:Styles.chord_header ~children:[React.string (prefix ^ Notes.string_of_notes notes ^ chord_name)] () [@JSX];
-      div ~style:Styles.interval_line ~children:[React.string (notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
-      div ~style:Styles.interval_line ~children:[React.string (notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
-      Staff.createElement ~notes ~key_signature () [@JSX];
-      Fretboard.createElement ~notes ~tuning ~extra_notes () [@JSX];
+      div ~style:Styles.chord_header ~children:[React.string (prefix ^ Notes.string_of_notes filtered_notes ^ chord_name)] () [@JSX];
+      tone_toggles;
+      div ~style:Styles.interval_line ~children:[React.string (filtered_notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
+      div ~style:Styles.interval_line ~children:[React.string (filtered_notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
+      Staff.createElement ~notes:filtered_notes ~key_signature () [@JSX];
+      Fretboard.createElement ~notes:filtered_notes ~tuning ~extra_notes () [@JSX];
     ] () [@JSX]
   [@@react.component]
 end

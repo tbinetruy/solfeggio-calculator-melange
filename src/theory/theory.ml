@@ -306,6 +306,45 @@ module Interval = struct
     | Eleventh q -> PerfectQuality.to_string q ^ "11"
     | Thirteenth q -> MajorMinorQuality.to_string q ^ "13"
 
+  (* Chord tone label: "R", "3", "♭7", "9" etc.
+     Major/perfect qualities show just the number; others get an accidental prefix. *)
+  let to_chord_label = function
+    | Unison -> "R"
+    | Octave -> "R"
+    | Second MajorMinorQuality.Major -> "2"
+    | Second Minor -> {js|♭2|js}
+    | Second Augmented -> {js|♯2|js}
+    | Second Diminished -> {js|𝄫2|js}
+    | Third Major -> "3"
+    | Third Minor -> {js|♭3|js}
+    | Third Augmented -> {js|♯3|js}
+    | Third Diminished -> {js|𝄫3|js}
+    | Fourth Perfect -> "4"
+    | Fourth Diminished -> {js|♭4|js}
+    | Fourth Augmented -> {js|♯4|js}
+    | Fifth Perfect -> "5"
+    | Fifth Diminished -> {js|♭5|js}
+    | Fifth Augmented -> {js|♯5|js}
+    | Sixth Major -> "6"
+    | Sixth Minor -> {js|♭6|js}
+    | Sixth Augmented -> {js|♯6|js}
+    | Sixth Diminished -> {js|𝄫6|js}
+    | Seventh Major -> "7"
+    | Seventh Minor -> {js|♭7|js}
+    | Seventh Augmented -> {js|♯7|js}
+    | Seventh Diminished -> {js|𝄫7|js}
+    | Ninth Major -> "9"
+    | Ninth Minor -> {js|♭9|js}
+    | Ninth Augmented -> {js|♯9|js}
+    | Ninth Diminished -> {js|𝄫9|js}
+    | Eleventh Perfect -> "11"
+    | Eleventh Diminished -> {js|♭11|js}
+    | Eleventh Augmented -> {js|♯11|js}
+    | Thirteenth Major -> "13"
+    | Thirteenth Minor -> {js|♭13|js}
+    | Thirteenth Augmented -> {js|♯13|js}
+    | Thirteenth Diminished -> {js|𝄫13|js}
+
   let rec interval_number_of_notes note_a note_b acc =
     if Note.is_same_pitch_class note_a note_b then acc
     else interval_number_of_notes (Note.get_next_note note_a) note_b (acc + 1)
@@ -630,6 +669,10 @@ module Chord = struct
 
   let to_notes root quality =
     to_intervals quality |. Intervals.to_notes root
+
+  let tone_labels quality =
+    let intervals = to_intervals quality |. Intervals.to_list in
+    "R" :: (intervals |. List.map Interval.to_chord_label)
 end
 
 
