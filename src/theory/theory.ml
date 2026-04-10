@@ -16,11 +16,11 @@ module Accidental = struct
     | Double_sharp
 
   let to_string = function
-    | Double_flat -> "bb"
-    | Flat -> "b"
+    | Double_flat -> "𝄫"
+    | Flat -> "♭"
     | Natural -> ""
-    | Sharp -> "#"
-    | Double_sharp -> "##"
+    | Sharp -> "♯"
+    | Double_sharp -> "𝄪"
 
   let to_semitones = function
     | Double_flat -> -2
@@ -151,9 +151,9 @@ module Interval = struct
       | _ -> Result.Error "Semitones greater than 1 or smaller than -1 are not supported."
 
     let to_string = function
-      | Diminished -> "diminished"
-      | Perfect -> "perfect"
-      | Augmented -> "augmented"
+      | Diminished -> "d"
+      | Perfect -> "P"
+      | Augmented -> "A"
   end
 
   module MajorMinorQuality = struct
@@ -177,10 +177,10 @@ module Interval = struct
       | _ -> Result.Error "Semitones greater than 1 or smaller than -2 are not supported."
 
     let to_string = function
-      | Diminished -> "diminished"
-      | Minor -> "minor"
-      | Major -> "major"
-      | Augmented -> "augmented"
+      | Diminished -> "d"
+      | Minor -> "m"
+      | Major -> "M"
+      | Augmented -> "A"
   end
 
   type t =
@@ -239,14 +239,14 @@ module Interval = struct
     | _ -> Result.Error "n_notes > 8 (Octave) are not supported"
 
   let to_string = function
-    | Unison -> "unison"
-    | Second q -> MajorMinorQuality.to_string q ^ " second"
-    | Third q -> MajorMinorQuality.to_string q ^ " third"
-    | Fourth q -> PerfectQuality.to_string q ^ " fourth"
-    | Fifth q -> PerfectQuality.to_string q ^ " fifth"
-    | Sixth q -> MajorMinorQuality.to_string q ^ " sixth"
-    | Seventh q -> MajorMinorQuality.to_string q ^ " seventh"
-    | Octave -> "octave"
+    | Unison -> "P1"
+    | Second q -> MajorMinorQuality.to_string q ^ "2"
+    | Third q -> MajorMinorQuality.to_string q ^ "3"
+    | Fourth q -> PerfectQuality.to_string q ^ "4"
+    | Fifth q -> PerfectQuality.to_string q ^ "5"
+    | Sixth q -> MajorMinorQuality.to_string q ^ "6"
+    | Seventh q -> MajorMinorQuality.to_string q ^ "7"
+    | Octave -> "P8"
 
   let rec interval_number_of_notes note_a note_b acc =
     if Note.is_same_pitch_class note_a note_b then acc
@@ -348,7 +348,7 @@ module Intervals = struct
     | Absolute intervals | Relative intervals -> intervals
 
   let to_string intervals =
-    intervals |. to_list |. List.map Interval.to_string |> String.concat " | "
+    intervals |. to_list |. List.map Interval.to_string |> String.concat " · "
 
   let map intervals f =
     match intervals with
@@ -425,26 +425,26 @@ module Chord = struct
   let make root quality = { root; quality }
 
   let quality_to_string = function
-    | Major_triad -> "majorTriad"
-    | Minor_triad -> "minorTriad"
-    | Augmented_triad -> "augmentedTriad"
-    | Diminished_triad -> "diminishedTriad"
-    | Suspended_triad -> "suspendedTriad"
-    | Power_chord -> "powerChord"
-    | Diminished_power_chord -> "diminishedPowerChord"
-    | Augmented_power_chord -> "augmentedPowerChord"
-    | Major_seventh -> "majorSeventh"
-    | Dominant_seventh -> "dominantSeventh"
-    | Minor_seventh_major -> "minorSeventhMajor"
-    | Minor_seventh -> "minorSeventh"
-    | Augmented_major_seventh -> "augmentedMajorSeventh"
-    | Half_diminished_seventh -> "halfDiminishedSeventh"
-    | Diminished_seventh -> "diminishedSeventh"
-    | Suspended_seventh -> "suspendedSeventh"
-    | Seventh_augmented_fifth -> "seventhAugmentedFifth"
-    | Seventh_diminished_fifth -> "seventhDiminishedFifth"
-    | Major_sixth -> "majorSixth"
-    | Minor_sixth -> "minorSixth"
+    | Major_triad -> "maj"
+    | Minor_triad -> "m"
+    | Augmented_triad -> "+"
+    | Diminished_triad -> "°"
+    | Suspended_triad -> "sus4"
+    | Power_chord -> "5"
+    | Diminished_power_chord -> "♭5"
+    | Augmented_power_chord -> "♯5"
+    | Major_seventh -> "△7"
+    | Dominant_seventh -> "7"
+    | Minor_seventh_major -> "m△7"
+    | Minor_seventh -> "m7"
+    | Augmented_major_seventh -> "+△7"
+    | Half_diminished_seventh -> "ø7"
+    | Diminished_seventh -> "°7"
+    | Suspended_seventh -> "7sus4"
+    | Seventh_augmented_fifth -> "7♯5"
+    | Seventh_diminished_fifth -> "7♭5"
+    | Major_sixth -> "6"
+    | Minor_sixth -> "m6"
 
   let to_string chord =
     Note.to_string chord.root ^ " " ^ quality_to_string chord.quality

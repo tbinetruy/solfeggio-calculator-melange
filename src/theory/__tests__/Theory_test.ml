@@ -6,15 +6,15 @@ open Theory;;
 describe "Accidental.to_string" (fun () ->
     let open Accidental in
     test "Double_flat" (fun () ->
-        expect (Double_flat |> to_string) |> toEqual "bb");
+        expect (Double_flat |> to_string) |> toEqual "\xF0\x9D\x84\xAB");
     test "Flat" (fun () ->
-        expect (Flat |> to_string) |> toEqual "b");
+        expect (Flat |> to_string) |> toEqual "\xe2\x99\xad");
     test "Natural" (fun () ->
         expect (Natural |> to_string) |> toEqual "");
     test "Sharp" (fun () ->
-        expect (Sharp |> to_string) |> toEqual "#");
+        expect (Sharp |> to_string) |> toEqual "\xe2\x99\xaf");
     test "Double_sharp" (fun () ->
-        expect (Double_sharp |> to_string) |> toEqual "##");
+        expect (Double_sharp |> to_string) |> toEqual "\xF0\x9D\x84\xAA");
 );;
 
 describe "Accidental.to_semitones" (fun () ->
@@ -104,7 +104,7 @@ describe "Interval.PerfectQuality" (fun () ->
         expect (semitones |. List.map of_semitones) |> toEqual expected_errors);
     test "to_string" (fun () ->
         let qualifiers = [Diminished; Perfect; Augmented] in
-        let expected_strings = ["diminished"; "perfect"; "augmented"] in
+        let expected_strings = ["d"; "P"; "A"] in
         expect (qualifiers |. List.map to_string) |> toEqual expected_strings);
 );;
 
