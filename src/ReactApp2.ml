@@ -1,58 +1,5 @@
-let ( let* ) promise f =
-  Js.Promise.then_ f promise;;
-
-
-module MyParagraph = struct
-  let make ~content =
-    p ~children:[React.string content] () [@JSX]
-  [@@react.component]
-end;;
-
-
-module Header = struct
-  let make ~titles =
-    titles
-    |. Belt.List.map (fun greeting ->
-         h1 ~key:greeting ~children:[React.string greeting] () [@JSX])
-    |. Belt.List.toArray
-    |. React.array
-  [@@react.component]
-end;;
-
-let use_data url =
-    let (data, set_data) = React.useState (fun _ -> "fetching") in
-
-    let fetch_data url =
-      let* response = Fetch.fetch url in
-      let* text = Fetch.Response.text response in
-      set_data (fun _ -> text);
-      Js.Promise.resolve ()
-    in
-
-    React.useEffect0 (fun () ->
-      let _ = fetch_data url in
-      None
-    );
-
-    data
-
-module AppOld = struct
-  let make () =
-    let data = use_data "https://jsonplaceholder.typicode.com/todos/1"  in
-
-    let note = Theory.Note.A(Theory.Accidental.DoubleFlat) |> Theory.Note.to_string in
-
-    let titles = [
-      "Hello " ^ World.name ^ "!";
-      "This is React!!" ^ note;
-    ] in
-
-    div ~children:[
-      Header.createElement ~titles:titles () [@JSX];
-      MyParagraph.createElement ~content:data () [@JSX];
-    ] () [@JSX]
-  [@@react.component]
-end;;
+open Belt
+open Theory
 
 module StringMap = Stdlib.Map.Make(String)
 
@@ -60,9 +7,9 @@ module Select = struct
   let get_options spec =
     []
     |> StringMap.fold (fun value _ acc ->
-        option ~key:value ~children:[React.string(value)] () [@JSX] :: acc
+        option ~key:value ~children:[React.string value] () [@JSX] :: acc
       ) spec
-    |> List.rev
+    |> Stdlib.List.rev
     |> Stdlib.Array.of_list
     |> React.array
 
@@ -71,15 +18,15 @@ module Select = struct
     let _ =
       spec
       |> StringMap.find_opt target##value
-      |> Option.map (fun callback -> callback ()) in
+      |> Stdlib.Option.map (fun callback -> callback ()) in
     ()
 
   let make ~spec ~value =
     div ~children:[
-      select ~value:value ~onChange:(on_change spec) ~children:[get_options spec] () [@JSX]
+      select ~value ~onChange:(on_change spec) ~children:[get_options spec] () [@JSX]
     ] () [@JSX]
   [@@react.component]
-end;;
+end
 
 
 module FlexRow = struct
@@ -88,85 +35,262 @@ module FlexRow = struct
   let make ~children =
     div ~style:flex_row ~children:[children] () [@JSX]
   [@@react.component]
-end;;
+end
+
+
+module AnnotatedFretboard = struct
+  let make ~notes ~tuning ?(extra_notes=[]) () =
+    let chord_name =
+      notes
+      |> Intervals.absolute_intervals_of_notes
+      |> Chord.quality_of_intervals
+      |. Result.mapWithDefault "" (fun quality ->
+          " (" ^ Chord.quality_to_string quality ^ ")")
+    in
+    div ~children:[
+      div ~children:[React.string (Notes.string_of_notes notes ^ chord_name)] () [@JSX];
+      div ~children:[React.string (notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
+      div ~children:[React.string (notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
+      Fretboard.createElement ~notes ~tuning ~extra_notes () [@JSX];
+    ] () [@JSX]
+  [@@react.component]
+end
 
 
 module App = struct
-  open Theory.Chord
-  open Theory.Note
-  open Theory.Accidental
-
   let make () =
-    let (root_pitch_class, set_root_pitch_class) = React.useState (fun _ -> C(Natural)) in
-    let (accidental, set_accidental) = React.useState (fun _ -> Natural) in
-    let (chord, _set_chord_type) = React.useState (fun _ -> None) in
+    let (root_pitch_class, set_root_pitch_class) = React.useState (fun _ -> Note.c Accidental.Natural) in
+    let (accidental, set_accidental) = React.useState (fun _ -> Accidental.Natural) in
+    let (chord_quality, _set_chord_quality) = React.useState (fun _ -> None) in
+    let (scale_quality, _set_scale_quality) = React.useState (fun _ -> Some Scale.Harmonic_minor) in
+    let (interval_type, _set_interval_type) = React.useState (fun _ -> None) in
+    let (progression_type, _set_progression_type) = React.useState (fun _ -> (Some [|1; 4; 0|])) in
+    let (tuning, set_tuning) = React.useState (fun _ -> Fretboard.Tuning.Standard) in
+    let root = Note.set_accidental root_pitch_class accidental in
 
-    let set_chord_type f =
-      _set_chord_type(f);
-      _set_chord_type(f)
+    let set_chord_quality f =
+      _set_chord_quality f;
+      _set_interval_type (fun _ -> None);
+      _set_scale_quality (fun _ -> None)
+    in
+    let set_scale_quality f =
+      _set_scale_quality f;
+      _set_interval_type (fun _ -> None);
+      _set_chord_quality (fun _ -> None)
+    in
+    let set_interval_type f =
+      _set_interval_type f;
+      _set_scale_quality (fun _ -> None);
+      _set_chord_quality (fun _ -> None)
     in
 
-    let root_pitch_spec = [
-      C(accidental);
-      D(accidental);
-      E(accidental);
-      F(accidental);
-      G(accidental);
-      A(accidental);
-      B(accidental);
-    ] |> List.fold_left
-        (fun acc el ->
-          acc
-          |> StringMap.add
-            (Theory.Note.to_string el)
-            (fun () -> set_root_pitch_class (fun _ -> el))
-        )
-        StringMap.empty
+    let notes = match (interval_type, chord_quality, scale_quality) with
+      | (Some interval, _, _) -> Interval.to_notes root interval
+      | (None, Some quality, _) -> Chord.to_notes root quality
+      | (None, None, Some quality) -> Scale.to_notes root quality
+      | (None, None, None) -> []
     in
 
-    let accidental_spec = [
-      Flat;
-      Natural;
-      Sharp;
-    ] |> List.fold_left
-        (fun acc el ->
-           acc
-           |> StringMap.add
-             (Theory.Accidental.to_string el)
-             (fun () -> set_accidental (fun _ -> el))
-        )
-        StringMap.empty
+    let harmonization_triad_chords = scale_quality |. Option.mapWithDefault "" (fun quality ->
+      match Harmonization.to_triads quality with
+      | Result.Ok chords ->
+        chords |. List.map Chord.quality_to_string |> String.concat " | "
+      | Result.Error msg -> msg
+    ) in
+
+    let harmonization_triads = scale_quality |. Option.mapWithDefault "" (fun quality ->
+      match Harmonization.to_triad_progression quality root with
+      | Result.Ok harmonization -> Progression.to_string harmonization
+      | Result.Error msg -> msg
+    ) in
+
+    let harmonization_tetrad_chords = scale_quality |. Option.mapWithDefault "" (fun quality ->
+      match Harmonization.to_tetrads quality with
+      | Result.Ok chords ->
+        chords |. List.map Chord.quality_to_string |> String.concat " | "
+      | Result.Error msg -> msg
+    ) in
+
+    let harmonization_tetrads = scale_quality |. Option.mapWithDefault "" (fun quality ->
+      match Harmonization.to_tetrad_progression quality root with
+      | Result.Ok harmonization -> Progression.to_string harmonization
+      | Result.Error msg -> msg
+    ) in
+
+    let tuning_spec =
+      [|Fretboard.Tuning.Standard; Ukulele|]
+      |. Array.reduce StringMap.empty (fun acc el ->
+        acc |> StringMap.add (Fretboard.Tuning.to_string el)
+          (fun () -> set_tuning (fun _ -> el)))
     in
 
-    let chord_type_spec = [
-      MajorTriad(root_pitch_class);
-      MinorTriad(root_pitch_class);
-    ] |> List.map (fun el -> Some(el))
-      |> List.cons None
-      |> List.fold_left
-        (fun acc el ->
-           acc
-           |> StringMap.add
-             (el |> Option.map Theory.Chord.to_string |> Option.value ~default:"None")
-             (fun () -> set_chord_type (fun _ -> el))
-        )
-        StringMap.empty
+    let root_pitch_spec =
+      Note.[c Natural; d Natural; e Natural; f Natural; g Natural; a Natural; b Natural]
+      |> Stdlib.List.fold_left (fun acc el ->
+        acc |> StringMap.add (Note.to_string el)
+          (fun () -> set_root_pitch_class (fun _ -> el))
+      ) StringMap.empty
+    in
+
+    let accidental_spec =
+      Accidental.[Flat; Natural; Sharp]
+      |> Stdlib.List.fold_left (fun acc el ->
+        acc |> StringMap.add (Accidental.to_string el)
+          (fun () -> set_accidental (fun _ -> el))
+      ) StringMap.empty
+    in
+
+    let interval_type_spec =
+      let open Interval in
+      let open Interval.MajorMinorQuality in
+      let open Interval.PerfectQuality in
+      [
+        Some (Minor |. Second);
+        Some (Major |. Second);
+        Some (Diminished |. Third);
+        Some (Minor |. Third);
+        Some (Major |. Third);
+        Some (Diminished |. Fourth);
+        Some (Perfect |. Fourth);
+        Some (Augmented |. Fourth);
+        Some (Diminished |. Fifth);
+        Some (Perfect |. Fifth);
+        Some (Augmented |. Fifth);
+        Some (Minor |. Sixth);
+        Some (Major |. Sixth);
+        Some (Diminished |. Seventh);
+        Some (Minor |. Seventh);
+        Some (Major |. Seventh);
+        None;
+      ]
+      |> Stdlib.List.fold_left (fun acc el ->
+        acc |> StringMap.add
+          (el |> Stdlib.Option.map Interval.to_string |> Stdlib.Option.value ~default:"None")
+          (fun () -> set_interval_type (fun _ -> el))
+      ) StringMap.empty
+    in
+
+    let chord_quality_spec =
+      let open Chord in
+      [
+        Some Major_triad; Some Minor_triad; Some Augmented_triad; Some Diminished_triad;
+        Some Suspended_triad; Some Power_chord; Some Diminished_power_chord; Some Augmented_power_chord;
+        Some Major_seventh; Some Dominant_seventh; Some Minor_seventh_major; Some Minor_seventh;
+        Some Augmented_major_seventh; Some Half_diminished_seventh; Some Diminished_seventh;
+        Some Suspended_seventh; Some Seventh_augmented_fifth; Some Seventh_diminished_fifth;
+        Some Major_sixth; Some Minor_sixth;
+        None;
+      ]
+      |> Stdlib.List.fold_left (fun acc el ->
+        acc |> StringMap.add
+          (el |> Stdlib.Option.map Chord.quality_to_string |> Stdlib.Option.value ~default:"None")
+          (fun () -> set_chord_quality (fun _ -> el))
+      ) StringMap.empty
+    in
+
+    let scale_quality_spec =
+      let open Scale in
+      [
+        Some Major; Some Natural_minor; Some Harmonic_minor;
+        Some Ionian; Some Dorian; Some Phrygian; Some Lydian;
+        Some Mixolydian; Some Aeolian; Some Locrian;
+        None;
+      ]
+      |> Stdlib.List.fold_left (fun acc el ->
+        acc |> StringMap.add
+          (el |> Stdlib.Option.map Scale.quality_to_string |> Stdlib.Option.value ~default:"None")
+          (fun () -> set_scale_quality (fun _ -> el))
+      ) StringMap.empty
+    in
+
+    let string_of_progression_type degrees =
+      degrees |. Array.reduce "" (fun acc n ->
+        acc ^ string_of_int (n + 1) ^ " ")
+    in
+
+    let progression_type_spec =
+      [
+        Some [|1; 4; 0|];
+        Some [|0; 1; 2; 3; 4; 5; 6|];
+        Some [|0; 6; 3|];
+        None;
+      ]
+      |> Stdlib.List.fold_left (fun acc el ->
+        acc |> StringMap.add
+          (el |> Stdlib.Option.map string_of_progression_type |> Stdlib.Option.value ~default:"None")
+          (fun () -> _set_progression_type (fun _ -> el))
+      ) StringMap.empty
+    in
+
+    let progression =
+      (match (scale_quality, progression_type) with
+       | (Some quality, Some degrees) ->
+         Harmonization.to_progression quality root Harmonization.tetrad_degrees degrees
+         |. Result.getWithDefault []
+       | _ -> [])
+      |. List.mapWithIndex (fun i chord_notes ->
+        let extra_notes = Notes.subtract notes chord_notes in
+        AnnotatedFretboard.createElement
+          ~notes:chord_notes ~tuning ~extra_notes
+          ~key:(string_of_int i) () [@JSX]
+      )
+      |. List.toArray
+      |. React.array
+    in
+
+    let harmonization = match scale_quality with
+      | Some _ ->
+        div ~children:[
+          div ~children:[React.string "---- Triad harmonization ----"] () [@JSX];
+          div ~children:[React.string harmonization_triad_chords] () [@JSX];
+          div ~children:[React.string harmonization_triads] () [@JSX];
+          div ~children:[React.string "---- Tetrad harmonization ----"] () [@JSX];
+          div ~children:[React.string harmonization_tetrad_chords] () [@JSX];
+          div ~children:[React.string harmonization_tetrads] () [@JSX];
+          div ~children:[React.string "---- Scale ----"] () [@JSX];
+        ] () [@JSX]
+      | None -> div ~children:[] () [@JSX]
     in
 
     div ~children:[
       h1 ~children:[React.string "Solfeggio calculator"] () [@JSX];
+      a ~href:"https://github.com/tbinetruy/solfeggio-calculator"
+        ~children:[React.string "Fork me on github"] () [@JSX];
+      FlexRow.createElement ~children:[
+        React.string "tuning: ";
+        Select.createElement ~spec:tuning_spec ~value:(Fretboard.Tuning.to_string tuning) () [@JSX]
+      ] () [@JSX];
       FlexRow.createElement ~children:[
         React.string "key: ";
-        Select.createElement ~spec:root_pitch_spec ~value:(Theory.Note.to_string root_pitch_class) () [@JSX]
+        Select.createElement ~spec:root_pitch_spec ~value:(Note.to_string root_pitch_class) () [@JSX]
       ] () [@JSX];
       FlexRow.createElement ~children:[
         React.string "accidental: ";
-        Select.createElement ~spec:accidental_spec ~value:(Theory.Accidental.to_string accidental) () [@JSX]
+        Select.createElement ~spec:accidental_spec ~value:(Accidental.to_string accidental) () [@JSX]
+      ] () [@JSX];
+      FlexRow.createElement ~children:[
+        React.string "interval: ";
+        Select.createElement ~spec:interval_type_spec
+          ~value:(interval_type |> Stdlib.Option.map Interval.to_string |> Stdlib.Option.value ~default:"None") () [@JSX]
       ] () [@JSX];
       FlexRow.createElement ~children:[
         React.string "chord: ";
-        Select.createElement ~spec:chord_type_spec ~value:(chord |> Option.map Theory.Chord.to_string |> Option.value ~default:"None") () [@JSX]
+        Select.createElement ~spec:chord_quality_spec
+          ~value:(chord_quality |> Stdlib.Option.map Chord.quality_to_string |> Stdlib.Option.value ~default:"None") () [@JSX]
       ] () [@JSX];
+      FlexRow.createElement ~children:[
+        React.string "scale: ";
+        Select.createElement ~spec:scale_quality_spec
+          ~value:(scale_quality |> Stdlib.Option.map Scale.quality_to_string |> Stdlib.Option.value ~default:"None") () [@JSX]
+      ] () [@JSX];
+      FlexRow.createElement ~children:[
+        React.string "progression: ";
+        Select.createElement ~spec:progression_type_spec
+          ~value:(progression_type |> Stdlib.Option.map string_of_progression_type |> Stdlib.Option.value ~default:"None") () [@JSX]
+      ] () [@JSX];
+      harmonization;
+      AnnotatedFretboard.createElement ~notes ~tuning () [@JSX];
+      progression;
     ] () [@JSX]
   [@@react.component]
 end;;
@@ -174,7 +298,7 @@ end;;
 match ReactDOM.querySelector "#root" with
   | Some element ->
       let root = ReactDOM.Client.createRoot element in
-      ReactDOM.Client.render root (App.createElement ~children:[] () [@JSX ])
+      ReactDOM.Client.render root (App.createElement ~children:[] () [@JSX])
   | None ->
       Js.Console.error
         "Failed to start React: couldn't find the #root element"
