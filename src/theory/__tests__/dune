@@ -1,7 +1,6 @@
 (melange.emit
  (target test)
  (alias test)
- (libraries
-  melange-jest.jest theory)
+ (libraries melange-jest.jest theory)
  (preprocess
   (pps melange.ppx)))
