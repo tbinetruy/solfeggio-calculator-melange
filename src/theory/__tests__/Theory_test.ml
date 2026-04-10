@@ -6,15 +6,15 @@ open Theory;;
 describe "Accidental.to_string" (fun () ->
     let open Accidental in
     test "Double_flat" (fun () ->
-        expect (Double_flat |> to_string) |> toEqual "\xF0\x9D\x84\xAB");
+        expect (Double_flat |> to_string) |> toEqual {js|♭♭|js});
     test "Flat" (fun () ->
-        expect (Flat |> to_string) |> toEqual "\xe2\x99\xad");
+        expect (Flat |> to_string) |> toEqual {js|♭|js});
     test "Natural" (fun () ->
         expect (Natural |> to_string) |> toEqual "");
     test "Sharp" (fun () ->
-        expect (Sharp |> to_string) |> toEqual "\xe2\x99\xaf");
+        expect (Sharp |> to_string) |> toEqual {js|♯|js});
     test "Double_sharp" (fun () ->
-        expect (Double_sharp |> to_string) |> toEqual "\xF0\x9D\x84\xAA");
+        expect (Double_sharp |> to_string) |> toEqual {js|♯♯|js});
 );;
 
 describe "Accidental.to_semitones" (fun () ->

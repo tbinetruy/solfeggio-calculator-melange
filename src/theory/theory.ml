@@ -16,11 +16,11 @@ module Accidental = struct
     | Double_sharp
 
   let to_string = function
-    | Double_flat -> "𝄫"
-    | Flat -> "♭"
+    | Double_flat -> {js|♭♭|js}
+    | Flat -> {js|♭|js}
     | Natural -> ""
-    | Sharp -> "♯"
-    | Double_sharp -> "𝄪"
+    | Sharp -> {js|♯|js}
+    | Double_sharp -> {js|♯♯|js}
 
   let to_semitones = function
     | Double_flat -> -2
@@ -348,7 +348,7 @@ module Intervals = struct
     | Absolute intervals | Relative intervals -> intervals
 
   let to_string intervals =
-    intervals |. to_list |. List.map Interval.to_string |> String.concat " · "
+    intervals |. to_list |. List.map Interval.to_string |> String.concat {js| · |js}
 
   let map intervals f =
     match intervals with
@@ -428,21 +428,21 @@ module Chord = struct
     | Major_triad -> "maj"
     | Minor_triad -> "m"
     | Augmented_triad -> "+"
-    | Diminished_triad -> "°"
+    | Diminished_triad -> {js|°|js}
     | Suspended_triad -> "sus4"
     | Power_chord -> "5"
-    | Diminished_power_chord -> "♭5"
-    | Augmented_power_chord -> "♯5"
-    | Major_seventh -> "△7"
+    | Diminished_power_chord -> {js|♭5|js}
+    | Augmented_power_chord -> {js|♯5|js}
+    | Major_seventh -> {js|△7|js}
     | Dominant_seventh -> "7"
-    | Minor_seventh_major -> "m△7"
+    | Minor_seventh_major -> {js|m△7|js}
     | Minor_seventh -> "m7"
-    | Augmented_major_seventh -> "+△7"
-    | Half_diminished_seventh -> "ø7"
-    | Diminished_seventh -> "°7"
+    | Augmented_major_seventh -> {js|+△7|js}
+    | Half_diminished_seventh -> {js|ø7|js}
+    | Diminished_seventh -> {js|°7|js}
     | Suspended_seventh -> "7sus4"
-    | Seventh_augmented_fifth -> "7♯5"
-    | Seventh_diminished_fifth -> "7♭5"
+    | Seventh_augmented_fifth -> {js|7♯5|js}
+    | Seventh_diminished_fifth -> {js|7♭5|js}
     | Major_sixth -> "6"
     | Minor_sixth -> "m6"
 
