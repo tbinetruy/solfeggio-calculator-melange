@@ -87,7 +87,7 @@ end
 
 
 module AnnotatedFretboard = struct
-  let make ~notes ~tuning ?(extra_notes=[]) () =
+  let make ~notes ~tuning ~key_signature ?(extra_notes=[]) () =
     let chord_name =
       notes
       |> Intervals.absolute_intervals_of_notes
@@ -99,6 +99,7 @@ module AnnotatedFretboard = struct
       div ~style:Styles.chord_header ~children:[React.string (Notes.string_of_notes notes ^ chord_name)] () [@JSX];
       div ~style:Styles.interval_line ~children:[React.string (notes |> Intervals.relative_intervals_of_notes |> Intervals.to_string)] () [@JSX];
       div ~style:Styles.interval_line ~children:[React.string (notes |> Intervals.absolute_intervals_of_notes |> Intervals.to_string)] () [@JSX];
+      Staff.createElement ~notes ~key_signature () [@JSX];
       Fretboard.createElement ~notes ~tuning ~extra_notes () [@JSX];
     ] () [@JSX]
   [@@react.component]
@@ -137,6 +138,11 @@ module App = struct
       | (None, Some quality, _) -> Chord.to_notes root quality
       | (None, None, Some quality) -> Scale.to_notes root quality
       | (None, None, None) -> []
+    in
+
+    let key_signature = match scale_quality with
+      | Some quality -> Scale.to_vexflow_key root quality
+      | None -> "C"
     in
 
     let harmonization_triad_chords = scale_quality |. Option.mapWithDefault "" (fun quality ->
@@ -279,7 +285,7 @@ module App = struct
       |. List.mapWithIndex (fun i chord_notes ->
         let extra_notes = Notes.subtract notes chord_notes in
         AnnotatedFretboard.createElement
-          ~notes:chord_notes ~tuning ~extra_notes
+          ~notes:chord_notes ~tuning ~key_signature ~extra_notes
           ~key:(string_of_int i) () [@JSX]
       )
       |. List.toArray
@@ -346,7 +352,7 @@ module App = struct
         ] () [@JSX];
       ] () [@JSX];
       harmonization;
-      AnnotatedFretboard.createElement ~notes ~tuning () [@JSX];
+      AnnotatedFretboard.createElement ~notes ~tuning ~key_signature () [@JSX];
       progression;
     ] () [@JSX]
   [@@react.component]
