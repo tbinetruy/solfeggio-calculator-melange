@@ -397,15 +397,25 @@ module Intervals = struct
     Relative (aux notes)
 
   let absolute_intervals_of_notes notes =
-    let rec aux = function
+    let rec aux prev_semitones = function
       | root :: next :: rest ->
-        root
-        |. Interval.from_notes next
+        let interval = root |. Interval.from_notes next in
+        let promoted = interval |. Result.map (fun iv ->
+          let s = Interval.to_semitones iv in
+          if s <= prev_semitones then
+            (* Crossed octave — promote to compound interval *)
+            let n_notes = Interval.n_notes_of_interval iv + 7 in
+            let n_semitones = s + 12 in
+            Interval.from_semitones n_notes n_semitones |. Result.getWithDefault iv
+          else iv
+        ) in
+        let semitones = promoted |. Result.mapWithDefault prev_semitones Interval.to_semitones in
+        promoted
         |. Result.mapWithDefault [] (fun interval -> [interval])
-        |. List.concat (aux (root :: rest))
+        |. List.concat (aux semitones (root :: rest))
       | [] | [_] -> []
     in
-    Absolute (aux notes)
+    Absolute (aux 0 notes)
 
   let to_list = function
     | Absolute intervals | Relative intervals -> intervals
